@@ -2,73 +2,150 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
-	"strings"
+	"os/signal"
+	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-var (
-	configPath  string
-	botID       string
-	botUsername string
-	botToken    string
-	debugMode   bool
+// VERSION contains the current version
+const VERSION string = "0.0.1"
+
+const (
+	// PermissionNone is given to everyone
+	PermissionNone = 0
+	// PermissionOwner only the bot owner can use
+	PermissionOwner = 1
 )
 
+// Instance struct describes the bot
+type Instance struct {
+	ConfigPath string
+	RugPath    string
+	Config     config
+	Session    *discordgo.Session
+	Me         *discordgo.User
+	Owner      *discordgo.User
+	DebugMode  bool
+	shutdown   chan os.Signal
+}
+
+// Duder contains the bot instance
+var Duder = &Instance{}
+
 func init() {
-	flag.StringVar(&configPath, "config", "duder.toml", "location of the config file, if not found it will be generated (default duder.toml)")
-	flag.BoolVar(&debugMode, "debug", false, "enable debug mode")
+	flag.StringVar(&Duder.ConfigPath, "config", "duder.toml", "location of the config file, if not found it will be generated (default duder.toml)")
+	flag.StringVar(&Duder.RugPath, "rugpath", "rugs", "directory of the rug files (default rugs)")
+	flag.BoolVar(&Duder.DebugMode, "debug", true, "enable debug mode")
 	flag.Parse()
 }
 
 func main() {
-	if err := LoadConfig(configPath); err != nil {
-		log.Fatal("error loading config,", err)
+	// intitialize shutdown channel.
+	Duder.shutdown = make(chan os.Signal, 1)
+
+	// load the rugs
+	log.Print("loading rugs from folder: ", Duder.RugPath)
+	LoadRugs(Duder.RugPath)
+	RunCommand("testcmd1")
+	RunCommand("testcmd2")
+
+	os.Exit(0)
+
+	// load the configuration file
+	log.Print("loading configuration file: ", Duder.ConfigPath)
+	if err := LoadConfig(Duder.ConfigPath); err != nil {
+		log.Fatal("failed to load configuration file,", err)
 	}
 
-	botToken := Config.BotToken
-	if !strings.HasPrefix(botToken, "Bot ") {
-		botToken = fmt.Sprintf("Bot %s", botToken)
-	}
-
-	log.Println("creating discord session with token", botToken)
-
-	dg, err := discordgo.New(botToken)
+	// create the Discord session
+	log.Printf("creating Discord session with token '%v'", Duder.Config.BotToken)
+	session, err := discordgo.New(Duder.Config.BotToken)
 	if err != nil {
 		log.Fatal("error creating discord session, ", err)
 	}
+	Duder.Session = session
 
-	log.Println("obtaining discord account details")
-	u, err := dg.User("@me")
+	// obtain bot account details
+	log.Println("obtaining bot account details")
+	me, err := Duder.Session.User("@me")
 	if err != nil {
-		log.Fatal("error obtaining account details, ", err)
+		log.Fatal("error obtaining bot account details, ", err)
 	}
+	Duder.Me = me
+	log.Print("bot client ID: ", Duder.Me.ID)
 
-	botID = u.ID
-	botUsername = u.Username
+	// obtain owner account details
+	log.Println("obtaining owner account details")
+	owner, err := Duder.Session.User(Duder.Config.OwnerID)
+	if err != nil {
+		log.Fatal("error obtaining owner account details, ", err)
+	}
+	Duder.Owner = owner
+	log.Print("owner client ID: ", Duder.Owner.ID)
 
-	dg.AddHandler(messageCreate)
+	// register callback for messageCreate
+	Duder.Session.AddHandler(onMessageCreate)
 
-	log.Println("opening discord connection")
-	err = dg.Open()
+	// open the Discord connection
+	log.Println("opening Discord connection")
+	err = Duder.Session.Open()
 	if err != nil {
 		log.Fatal("error opening discord connection,", err)
 	}
 
-	log.Println("Bot is now running.")
+	log.Println("bot is now running.")
 
-	<-make(chan struct{})
+	// register bot sg.shutdown channel to receive shutdown signals.
+	signal.Notify(Duder.shutdown, syscall.SIGINT, syscall.SIGTERM)
+
+	// wait for shutdown signal
+	<-Duder.shutdown
+
+	log.Println("termination signal received; shutting down...")
+
+	// gracefully shut down the bot
+	Duder.teardown()
+
 	return
 }
 
-func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
+// Shutdown sends Shutdown signal to the bot's Shutdown channel.
+func (duder *Instance) Shutdown() {
+	duder.shutdown <- os.Interrupt
+}
+
+// teardown gracefully releases all resources and saves data before Shutdown.
+func (duder *Instance) teardown() (err error) {
+	// Perform teardown for commands.
+	//sg.rootCommand.teardown(sg)
+
+	// close discord session.
+	err = duder.Session.Close()
+	if err != nil {
+		return
+	}
+	return
+}
+
+// DPrint calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Print.
+func (duder *Instance) DPrint(v ...interface{}) {
+	if duder.DebugMode {
+		log.Print(v...)
+	}
+}
+
+// DPrintf calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
+func (duder *Instance) DPrintf(format string, v ...interface{}) {
+	if duder.DebugMode {
+		log.Printf(format, v...)
+	}
+}
+
+func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
 	if message.Content == "!d quit" {
-		if err := session.Close(); err != nil {
-			log.Fatal("error closing session,", err)
-		}
-		os.Exit(0)
+		Duder.Shutdown()
 	}
 }
