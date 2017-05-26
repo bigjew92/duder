@@ -2,12 +2,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/fatih/color"
 )
 
 // VERSION contains the current version
@@ -23,7 +25,6 @@ const (
 // Instance struct describes the bot
 type Instance struct {
 	ConfigPath string
-	RugPath    string
 	Config     config
 	Session    *discordgo.Session
 	Me         *discordgo.User
@@ -36,28 +37,25 @@ type Instance struct {
 var Duder = &Instance{}
 
 func init() {
-	flag.StringVar(&Duder.ConfigPath, "config", "duder.toml", "location of the config file, if not found it will be generated (default duder.toml)")
-	flag.StringVar(&Duder.RugPath, "rugpath", "rugs", "directory of the rug files (default rugs)")
-	flag.BoolVar(&Duder.DebugMode, "debug", true, "enable debug mode")
+	flag.StringVar(&Duder.ConfigPath, "config", "duder.toml", "Location of the config file, if not found it will be generated (default duder.toml)")
+	flag.BoolVar(&Duder.DebugMode, "debug", true, "Enable debug mode")
 	flag.Parse()
+
+	log.Printf("Duder version %s", VERSION)
 }
 
 func main() {
 	// intitialize shutdown channel.
 	Duder.shutdown = make(chan os.Signal, 1)
 
-	// load the rugs
-	log.Print("loading rugs from folder: ", Duder.RugPath)
-	LoadRugs(Duder.RugPath)
-	RunCommand("testcmd1")
-	RunCommand("testcmd2")
-
-	os.Exit(0)
-
 	// load the configuration file
-	log.Print("loading configuration file: ", Duder.ConfigPath)
 	if err := LoadConfig(Duder.ConfigPath); err != nil {
-		log.Fatal("failed to load configuration file,", err)
+		log.Fatal("Failed to load configuration file, ", err)
+	}
+
+	// load the rugs
+	if err := LoadRugs(Duder.Config.RugPath); err != nil {
+		log.Fatal("Failed to load rugs, ", err)
 	}
 
 	// create the Discord session
@@ -133,19 +131,20 @@ func (duder *Instance) teardown() (err error) {
 // DPrint calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Print.
 func (duder *Instance) DPrint(v ...interface{}) {
 	if duder.DebugMode {
-		log.Print(v...)
+		c := color.New(color.FgYellow)
+		c.Println(v...)
 	}
 }
 
 // DPrintf calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
 func (duder *Instance) DPrintf(format string, v ...interface{}) {
 	if duder.DebugMode {
-		log.Printf(format, v...)
+		c := color.New(color.FgYellow)
+		c.Printf(format, v...)
+		fmt.Println("")
 	}
 }
 
 func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
-	if message.Content == "!d quit" {
-		Duder.Shutdown()
-	}
+	OnMessageCreate(session, message)
 }

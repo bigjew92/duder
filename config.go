@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,8 @@ import (
 type config struct {
 	BotToken string `toml:"bot_token"`
 	OwnerID  string `toml:"owner_ID"`
+	RugPath  string `toml:"rug_path"`
+	Prefix   string `toml:"prefix"`
 }
 
 const defaultConfig = `# Duder configuration file
@@ -22,13 +25,23 @@ bot_token = "BOT_TOKEN"
 
 # Discord client ID for bot owner
 owner_ID = "OWNER_ID"
+
+rug_path = "rugs"
+prefix = "!d"
 `
 
 // LoadConfig loads the configuration file
 func LoadConfig(path string) error {
+	// validate the config file
+	path = strings.TrimSpace(path)
+	if len(path) == 0 {
+		return errors.New("config file is undefined")
+	}
+	log.Print("Loading configuration file: ", path)
+
 	// check if the file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Print("configuration file not found; creating new one...\r\n")
+		log.Print("Configuration file not found; creating new one...\r\n")
 
 		// prompt for bot token
 		botToken := getInput("Bot token", true)
@@ -41,10 +54,10 @@ func LoadConfig(path string) error {
 
 		// create the configuration file
 		if err := ioutil.WriteFile(path, []byte(configData), 0644); err != nil {
-			log.Print("unable to create configuration file ", path)
+			log.Print("Unable to create configuration file ", path)
 			return err
 		}
-		log.Printf("configuration file %v created", path)
+		log.Printf("Configuration file %v created", path)
 
 		// load the configuration data
 		if _, err := toml.Decode(configData, &Duder.Config); err != nil {
