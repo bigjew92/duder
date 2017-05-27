@@ -26,7 +26,10 @@ bot_token = "BOT_TOKEN"
 # Discord client ID for bot owner
 owner_ID = "OWNER_ID"
 
+# Path where Rugs are located
 rug_path = "rugs"
+
+# Message prefix to indicate it's a bot command
 prefix = "!d"
 `
 
@@ -35,7 +38,7 @@ func LoadConfig(path string) error {
 	// validate the config file
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
-		return errors.New("config file is undefined")
+		return errors.New("configuration file is undefined")
 	}
 	log.Print("Loading configuration file: ", path)
 
@@ -54,8 +57,7 @@ func LoadConfig(path string) error {
 
 		// create the configuration file
 		if err := ioutil.WriteFile(path, []byte(configData), 0644); err != nil {
-			log.Print("Unable to create configuration file ", path)
-			return err
+			return errors.New(fmt.Sprint("unable to create configuration file ", path, err.Error()))
 		}
 		log.Printf("Configuration file %v created", path)
 
@@ -68,6 +70,12 @@ func LoadConfig(path string) error {
 		if _, err := toml.DecodeFile(path, &Duder.Config); err != nil {
 			return err
 		}
+	}
+
+	// validate the prefix
+	Duder.Config.Prefix = strings.TrimSpace(Duder.Config.Prefix)
+	if len(Duder.Config.Prefix) == 0 {
+		return errors.New("'prefix' is undefined in configuration file")
 	}
 
 	// ensure the bot token has the 'Bot ' prefix

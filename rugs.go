@@ -9,10 +9,9 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/robertkrimen/otto"
 )
-
-var vm *otto.Otto
 
 // RugCommand defines the rug command
 type RugCommand struct {
@@ -30,72 +29,53 @@ type Rug struct {
 	teardown    func()
 }
 
-var rugs = map[string]Rug{}
+// rugMap contains all the rugs
+var rugMap = map[string]Rug{}
+
+// js is the JavaScript runtime
+var js *otto.Otto
 
 func init() {
-}
+	// create the JavaScript runtime
+	js = otto.New()
 
-func createRugEnvironment() error {
-	vm = otto.New()
-
-	// create the rug environment
-	vm.Set("createRug", createRug)
-	vm.Set("addRugCommand", addRugCommand)
-	if _, err := vm.Run(`
-		function Rug(name, description) {
-			this.name = name;
-			createRug(this, name, description);
-		}
-
-		Rug.prototype.addCommand = function(trigger, exec) {
-			addRugCommand(this, trigger, exec);
-		}
-	`); err != nil {
-		return errors.New(fmt.Sprint("error creating rug environment: ", err.Error()))
-	}
-
-	// expose functions
-	vm.Set("print", func(msg string) { fmt.Println(msg) })
-	vm.Set("log", func(msg string) { log.Println(msg) })
-	vm.Set("shutdown", Duder.Shutdown)
-
-	return nil
-}
-
-// LoadRugs loads the rugs
-func LoadRugs(path string) error {
 	if err := createRugEnvironment(); err != nil {
-		return err
+		log.Fatal("Unable to create Rug environment", err.Error())
 	}
+}
 
+// LoadRugs loads all the Rugs from the Rug path
+func LoadRugs(path string) error {
 	// validate the rug path
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
-		return errors.New("rug path is undefined")
+		return errors.New("Rug path is undefined")
 	}
 
-	log.Print("Loading rugs from folder: ", path)
+	log.Printf("Loading Rugs from folder '%v'", path)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.Mkdir(path, 0644)
 	}
 
-	rugs = map[string]Rug{}
+	// clear the rugMap
+	rugMap = map[string]Rug{}
 
+	// read the directory to get all the files
 	files, _ := ioutil.ReadDir(path)
 	for _, f := range files {
-		if f.IsDir() {
+		// ignore directories and non-javascript files
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".js") {
 			continue
 		}
-		if !strings.HasSuffix(f.Name(), ".js") {
-			continue
-		}
-		Duder.DPrint("Loading rug file: ", f.Name())
+
+		// read the file
+		Duder.DPrintf("Loading rug file '%v'", f.Name())
 		if buf, err := ioutil.ReadFile(fmt.Sprintf("%v/%v", path, f.Name())); err != nil {
-			log.Print("Unable to load rug file", f.Name(), " reason ", err.Error())
+			log.Print("Unable to load rug file ", f.Name(), " reason ", err.Error())
 		} else {
 			s := string(buf)
-			if _, err := vm.Run(s); err != nil {
+			if _, err := js.Run(s); err != nil {
 				log.Print("Error loading rug ", err.Error())
 			}
 		}
@@ -104,68 +84,63 @@ func LoadRugs(path string) error {
 	return nil
 }
 
-func createRug(call otto.FunctionCall) otto.Value {
-	obj := call.Argument(0).Object()
-	name := call.Argument(1).String()
-	description := call.Argument(2).String()
-
-	rug := Rug{}
-	rug.Name = name
-	rug.Description = description
-	rug.Commands = map[string]RugCommand{}
-	rug.Object = obj
-
-	rugs[fmt.Sprintf("%v", obj)] = rug
-
-	Duder.DPrintf("Created rug '%v' %v", name, rug.Object)
-
-	return otto.Value{}
-}
-
-func addRugCommand(call otto.FunctionCall) otto.Value {
-	rugObj := call.Argument(0).Object()
-	trigger := call.Argument(1).String()
-	exec := call.Argument(2).String()
-
-	if rug, ok := rugs[fmt.Sprintf("%v", rugObj)]; ok {
-		rugCmd := RugCommand{}
-		rugCmd.Trigger = trigger
-		rugCmd.Exec = fmt.Sprintf("cmd = %s; cmd()", exec)
-		rug.Commands[trigger] = rugCmd
-		Duder.DPrintf("Added command '%v' to rug '%v'", trigger, rug.Name)
-	} else {
-		Duder.DPrintf("Unable to add command to rug '%v'", rugObj)
-	}
-	return otto.Value{}
-}
-
-// OnMessageCreate description
-func OnMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
-	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.Config.Prefix)) {
-		Duder.DPrint("command triggered")
-		RunCommand(session, message)
-	}
-}
-
-// RunCommand does the thing
+// RunCommand description
 func RunCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
+	// strip the command prefix from the message content
 	content := message.Content[len(Duder.Config.Prefix)+1 : len(message.Content)]
-	args := strings.Split(content, " ")
-	Duder.DPrintf("root command '%s'", args[0])
-	for _, rug := range rugs {
+
+	// get the root command
+	args := rugutils.ParseArguments(content)
+	if len(args) == 0 {
+		return
+	}
+	Duder.DPrintf("Root command '%s'", args[0])
+
+	// core commands
+	if message.Author.ID == Duder.Config.OwnerID {
+		if strings.EqualFold("reload", args[0]) {
+			session.ChannelMessageSend(message.ChannelID, "Reloading Rugs...")
+			LoadRugs(Duder.Config.RugPath)
+			return
+		} else if strings.EqualFold("shutdown", args[0]) {
+			session.ChannelMessageSend(message.ChannelID, "Goodbye")
+			Duder.Shutdown()
+			return
+		}
+	}
+
+	// check each rug to find the matching command
+	for _, rug := range rugMap {
 		for _, rugCmd := range rug.Commands {
-			if rugCmd.Trigger == args[0] {
-				execCommand(rug, rugCmd)
+			if strings.EqualFold(rugCmd.Trigger, args[0]) {
+				execCommand(rug, rugCmd, session, message, args)
 				return
 			}
 		}
 	}
 }
 
-func execCommand(rug Rug, command RugCommand) {
+// execCommand description
+func execCommand(rug Rug, command RugCommand, session *discordgo.Session, message *discordgo.MessageCreate, args []string) {
 	// set command environment variables
-	vm.Set("rug", rug.Object)
-	if _, err := vm.Run(command.Exec); err != nil {
+	js.Set("rug", rug.Object)
+	if _, err := js.Run(fmt.Sprintf(
+		`
+			var cmd = new DuderCommand();
+			cmd.channelID = "%s";
+			cmd.author = new DuderUser("%s", "%s");
+			cmd.mentions = %s;
+			cmd.args = %s;
+			`,
+		message.ChannelID,
+		message.Author.ID,
+		message.Author.Username,
+		rugutils.ConvertMentions(message.Mentions),
+		rugutils.ConvertArgs(args))); err != nil {
+		log.Print("Failed to set command enviroment ", err.Error())
+	}
+
+	if _, err := js.Run(command.Exec); err != nil {
 		log.Print("Failed to run command ", err.Error())
 	}
 }
