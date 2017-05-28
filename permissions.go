@@ -11,11 +11,10 @@ import (
 )
 
 type permissionsChannel struct {
-	ChannelID string
-	Users     map[string][]int
+	Users map[string][]int
 }
 
-type permissionsRoot struct {
+type permissions struct {
 	Channels map[string]permissionsChannel
 	path     string
 }
@@ -28,6 +27,20 @@ const (
 	// PermissionModerator stuff
 	PermissionModerator = 2
 )
+
+type permissionDefinition struct {
+	Value int
+	Names []string
+}
+
+var permissionDefinitions map[int]permissionDefinition
+
+func init() {
+	permissionDefinitions = make(map[int]permissionDefinition)
+	permissionDefinitions[-1] = permissionDefinition{Value: -1, Names: []string{"Invalid"}}
+	permissionDefinitions[1] = permissionDefinition{Value: 1, Names: []string{"Moderator", "Mod"}}
+	permissionDefinitions[2] = permissionDefinition{Value: 2, Names: []string{"Owner"}}
+}
 
 // LoadPermissions description
 func LoadPermissions(path string) error {
@@ -43,7 +56,7 @@ func LoadPermissions(path string) error {
 		log.Print("Permissions file not found; creating new one...\r\n")
 
 		// create the configuration file
-		if e := ioutil.WriteFile(path, []byte(""), 0644); e != nil {
+		if e := ioutil.WriteFile(path, []byte("{}"), 0644); e != nil {
 			return errors.New(fmt.Sprint("unable to create permissions file ", path, e.Error()))
 		}
 		log.Printf("Permissions file %v created", path)
@@ -62,7 +75,32 @@ func LoadPermissions(path string) error {
 	return nil
 }
 
-func (p *permissionsRoot) GetPermissions(channelID string, userID string) []int {
+func (p *permissions) GetPermissionByName(name string) permissionDefinition {
+	name = strings.TrimSpace(name)
+	if len(name) == 0 {
+		return permissionDefinitions[-1]
+	}
+
+	for _, p := range permissionDefinitions {
+		for _, n := range p.Names {
+			if strings.EqualFold(n, name) {
+				return p
+			}
+		}
+	}
+
+	return permissionDefinitions[-1]
+}
+
+func (p *permissions) GetPermissionByValue(value int) permissionDefinition {
+	if perm, ok := permissionDefinitions[value]; ok {
+		return perm
+	}
+
+	return permissionDefinitions[-1]
+}
+
+func (p *permissions) GetPermissions(channelID string, userID string) []int {
 	var perms []int
 
 	if channel, ok := p.Channels[channelID]; ok {
@@ -74,7 +112,7 @@ func (p *permissionsRoot) GetPermissions(channelID string, userID string) []int 
 	return perms
 }
 
-func (p *permissionsRoot) AddPermission(channelID string, userID string, perm int) error {
+func (p *permissions) AddPermission(channelID string, userID string, perm int) error {
 	if len(p.Channels) == 0 {
 		p.Channels = make(map[string]permissionsChannel)
 	}
@@ -106,7 +144,7 @@ func (p *permissionsRoot) AddPermission(channelID string, userID string, perm in
 	return nil
 }
 
-func (p *permissionsRoot) RemovePermission(channelID string, userID string, perm int) error {
+func (p *permissions) RemovePermission(channelID string, userID string, perm int) error {
 	var channel permissionsChannel
 	if c, ok := p.Channels[channelID]; ok {
 		channel = c
@@ -139,7 +177,7 @@ func (p *permissionsRoot) RemovePermission(channelID string, userID string, perm
 	return nil
 }
 
-func (p *permissionsRoot) Save() {
+func (p *permissions) Save() {
 	if bytes, err := json.MarshalIndent(p, "", "\t"); err != nil {
 		log.Print("unable to marshal permissions ", err.Error())
 	} else {

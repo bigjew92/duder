@@ -48,7 +48,7 @@ func LoadConfig(path string) error {
 
 		// prompt for bot token
 		botToken := getInput("Bot token", true)
-		// promot for owner ID
+		// prompt for owner ID
 		clientID := getInput("Owner ID", true)
 
 		// populate the configuration data

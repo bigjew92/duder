@@ -44,6 +44,8 @@ func init() {
 	}
 }
 
+var loadErrors []error
+
 // LoadRugs loads all the Rugs from the Rug path
 func LoadRugs(path string) error {
 	// validate the rug path
@@ -60,6 +62,7 @@ func LoadRugs(path string) error {
 
 	// clear the rugMap
 	rugMap = map[string]Rug{}
+	loadErrors = loadErrors[:0]
 
 	// read the directory to get all the files
 	files, _ := ioutil.ReadDir(path)
@@ -70,13 +73,15 @@ func LoadRugs(path string) error {
 		}
 
 		// read the file
-		Duder.DPrintf("Loading rug file '%v'", f.Name())
+		Duder.DPrintf("Loading Rug file '%v'", f.Name())
 		if buf, err := ioutil.ReadFile(fmt.Sprintf("%v/%v", path, f.Name())); err != nil {
-			log.Print("Unable to load rug file ", f.Name(), " reason ", err.Error())
+			log.Print("Unable to load Rug file ", f.Name(), " reason ", err.Error())
 		} else {
 			s := string(buf)
-			if _, err := js.Run(s); err != nil {
-				log.Print("Error loading rug ", err.Error())
+			if _, err := js.Run(fmt.Sprintf("__rbox = function(){ %s }; __rbox();", s)); err != nil {
+				//if _, err := js.Run(s); err != nil {
+				log.Print("Error loading Rug ", err.Error())
+				loadErrors = append(loadErrors, err)
 			}
 		}
 	}
@@ -88,6 +93,7 @@ func LoadRugs(path string) error {
 func RunCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 	// strip the command prefix from the message content
 	content := message.Content[len(Duder.Config.Prefix)+1 : len(message.Content)]
+	content = strings.TrimSpace(content)
 
 	// get the root command
 	args := rugutils.ParseArguments(content)
@@ -99,11 +105,15 @@ func RunCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 	// core commands
 	if message.Author.ID == Duder.Config.OwnerID {
 		if strings.EqualFold("reload", args[0]) {
-			session.ChannelMessageSend(message.ChannelID, "Reloading Rugs...")
 			LoadRugs(Duder.Config.RugPath)
+			if len(loadErrors) > 0 {
+				session.ChannelMessageSend(message.ChannelID, "Rugs reloaded with errors.")
+			} else {
+				session.ChannelMessageSend(message.ChannelID, "Rugs successfully reloaded.")
+			}
 			return
 		} else if strings.EqualFold("shutdown", args[0]) {
-			session.ChannelMessageSend(message.ChannelID, "Goodbye")
+			session.ChannelMessageSend(message.ChannelID, "Goodbye.")
 			Duder.Shutdown()
 			return
 		}
@@ -135,7 +145,7 @@ func execCommand(rug Rug, command RugCommand, session *discordgo.Session, messag
 		message.ChannelID,
 		message.Author.ID,
 		message.Author.Username,
-		rugutils.ConvertMentions(message.Mentions),
+		rugutils.ConvertMentions(message),
 		rugutils.ConvertArgs(args))); err != nil {
 		log.Print("Failed to set command enviroment ", err.Error())
 	}

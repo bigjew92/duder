@@ -27,7 +27,7 @@ type Instance struct {
 	DebugMode       bool
 	shutdown        chan os.Signal
 	PermissionsPath string
-	Permissions     permissionsRoot
+	Permissions     permissions
 }
 
 // Duder contains the bot instance

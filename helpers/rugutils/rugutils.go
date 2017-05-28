@@ -46,11 +46,11 @@ func ParseArguments(content string) []string {
 }
 
 // ConvertMentions description
-func ConvertMentions(mentions []*discordgo.User) string {
+func ConvertMentions(message *discordgo.MessageCreate) string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("new Array( ")
-	for i, mention := range mentions {
+	for i, mention := range message.Mentions {
 		if i > 0 {
 			buffer.WriteString(", ")
 		}
@@ -70,6 +70,21 @@ func ConvertArgs(args []string) string {
 			buffer.WriteString(", ")
 		}
 		buffer.WriteString(fmt.Sprintf("\"%s\"", arg))
+	}
+	buffer.WriteString(")")
+	return buffer.String()
+}
+
+// ConvertUserPermission description
+func ConvertUserPermission(perms []int) string {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("new Array( ")
+	for i, p := range perms {
+		if i > 0 {
+			buffer.WriteString(", ")
+		}
+		buffer.WriteString(fmt.Sprintf("\"%v\"", p))
 	}
 	buffer.WriteString(")")
 	return buffer.String()
