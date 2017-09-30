@@ -1,6 +1,6 @@
 var admin = new DuderRug("Admin", "Duder administration tools.");
 
-admin.addCommand( "setuser", function() {
+admin.addCommand("setuser", function() {
     if (!cmd.author.isOwner) {
         cmd.replyToChannel("Nope.");
         return;
@@ -9,7 +9,7 @@ admin.addCommand( "setuser", function() {
         return;
     }
 
-    var modifier = cmd.args[2].substring(0,1);
+    var modifier = cmd.args[2].substring(0, 1);
 
     if (modifier != "+" && modifier != "-") {
         cmd.replyToChannel("The permission must start with + or - to add or remove");
@@ -31,7 +31,7 @@ admin.addCommand( "setuser", function() {
     }
 });
 
-admin.addCommand( "viewuser", function() {
+admin.addCommand("viewuser", function() {
     if (!cmd.author.isOwner) {
         cmd.replyToChannel("Nope.");
         return;
@@ -48,11 +48,20 @@ admin.addCommand( "viewuser", function() {
     }
 });
 
-admin.addCommand( "test", function() {
+admin.addCommand("test", function() {
+    /*
     if (!cmd.author.isOwner) {
         cmd.replyToChannel("Nope.");
         return;
     }
 
     cmd.replyToChannel(cmd.channelID);
+    */
+    var token = "077d2e426a14cc040cd19361c7a8cca0";
+    var app_key = "d5a9622a50a05da4378eefbd2f0686de";
+    Web.post("https://api.trello.com/1/tokens/" + token + "/webhooks/?key=" + app_key, {
+        description: "My first webhook",
+        callbackURL: "http://www.mywebsite.com/trelloCallback",
+        idModel: "4d5ea62fd76aa1136000000c",
+    });
 });

@@ -109,8 +109,14 @@ func createRugEnvironment() error {
 		Web.get = function(url) {
 			return %s(url);
 		}
+		Web.post = function(url,data) {
+			return %s(url,data);
+		}
 		Web.jsonDecode = function(json) {
 			return %s(json);
+		}
+		Web.includeScript = function(url) {
+			%s(url);
 		}
 	`,
 		/* DuderPermission */
@@ -127,7 +133,9 @@ func createRugEnvironment() error {
 		bindRugFunction(rugAddCommand),
 		/* Web */
 		bindRugFunction(webGet),
-		bindRugFunction(webJSONDecode))
+		bindRugFunction(webPost),
+		bindRugFunction(webJSONDecode),
+		bindRugFunction(webIncludeScript))
 
 	if _, err := js.Run(env); err != nil {
 		fmt.Print(env)
@@ -143,6 +151,28 @@ func getHTTP() http.Client {
 	timeout := time.Duration(5 * time.Second)
 	return http.Client{
 		Timeout: timeout}
+}
+
+func webIncludeScript(call otto.FunctionCall) otto.Value {
+	url := call.Argument(0).String()
+
+	h := getHTTP()
+	resp, err := h.Get(url)
+	if err != nil {
+		return otto.FalseValue()
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return otto.FalseValue()
+	}
+
+	if _, err := js.Run(string(body)); err != nil {
+		Duder.DPrint("unable to run included script", err.Error())
+	}
+
+	return otto.TrueValue()
 }
 
 func webGet(call otto.FunctionCall) otto.Value {
@@ -165,6 +195,22 @@ func webGet(call otto.FunctionCall) otto.Value {
 	}
 
 	return otto.FalseValue()
+}
+
+func webPost(call otto.FunctionCall) otto.Value {
+	url := call.Argument(0).String()
+	data := call.Argument(1).Object()
+
+	log.Print(url)
+	//log.Print(data.Object().Keys())
+	for _, k := range data.Keys() {
+		log.Print(k)
+		if v, err := data.Get(k); err == nil {
+			log.Print(v)
+		}
+	}
+
+	return otto.TrueValue()
 }
 
 func webJSONDecode(call otto.FunctionCall) otto.Value {
