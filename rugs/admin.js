@@ -56,7 +56,6 @@ admin.addCommand("test", function() {
     }
 
     cmd.replyToChannel(cmd.channelID);
-    */
     var token = "077d2e426a14cc040cd19361c7a8cca0";
     var app_key = "d5a9622a50a05da4378eefbd2f0686de";
     Web.post("https://api.trello.com/1/tokens/" + token + "/webhooks/?key=" + app_key, {
@@ -64,4 +63,7 @@ admin.addCommand("test", function() {
         callbackURL: "http://www.mywebsite.com/trelloCallback",
         idModel: "4d5ea62fd76aa1136000000c",
     });
+    */
+
+    //cmd.replyToChannel(rug);
 });

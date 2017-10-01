@@ -12,7 +12,7 @@ funbox.addCommand("dice", function() {
     cmd.replyToAuthor("rolled a " + sides + " sided dice and got " + r);
 });
 
-var eightBallResponses = new Array(
+funbox.eightBallResponses = new Array(
     "It is certain",
     "It is decidedly so",
     "Without a doubt",
@@ -36,20 +36,35 @@ var eightBallResponses = new Array(
 );
 
 funbox.addCommand("8ball", function() {
-    r = Math.getRandomInRange(0, eightBallResponses.length - 1);
-    cmd.replyToAuthor("I rub my magic :8ball: balls and the response is `" + eightBallResponses[r] + "`");
+    r = Math.getRandomInRange(0, rug.eightBallResponses.length - 1);
+    cmd.replyToAuthor("I rub my magic :8ball: balls and the response is `" + rug.eightBallResponses[r] + "`");
 });
 
-funbox.addCommand("fact", function() {
-    /*
-    var text = Web.get("http://catfacts-api.appspot.com/api/facts");
-    var obj = JSON.parse(text);
-    print(obj.facts[0]);
-    */
-    /*
-    var text = Web.get("http://numbersapi.com/random");
-    if (text) {
-        cmd.replyToAuthor(text);
+funbox.lebowskiQuoteCallback = function( text ) {
+    json = JSON.decode(text);
+    quote = "```";
+    for(var k in json['quote']['lines']) {
+        line = json['quote']['lines'][k];
+        quote += line['character']['name'] + ": " + line['text'] + "\n";
     }
-    */
+    quote += "```";
+    cmd.replyToChannel(quote);
+}
+
+funbox.bashQuoteCallback = function( text ) {
+    print("bash!");
+}
+
+funbox.quoteSources = {
+    "http://lebowski.me/api/quotes/random": funbox.lebowskiQuoteCallback,
+    "http://bash.org/?random1": funbox.bashQuoteCallback
+};
+
+funbox.addCommand("quote", function() {
+    var keys = Object.keys(rug.quoteSources);
+    r = Math.getRandomInRange(0, keys.length - 1);
+    var key = keys[r];
+    key = "http://lebowski.me/api/quotes/random";
+    var text = HTTP.get(4, key);
+    rug.quoteSources[key]( text );
 });

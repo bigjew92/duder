@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/robertkrimen/otto"
@@ -104,19 +105,19 @@ func createRugEnvironment() error {
 			return Math.max(min, Math.min(val, max));
 		}
 
-		// Web
-		function Web() {};
-		Web.get = function(url) {
-			return %s(url);
+		// HTTP
+		function HTTP() {};
+		HTTP.get = function(timeout,url) {
+			return %s(timeout,url);
 		}
-		Web.post = function(url,data) {
-			return %s(url,data);
+		HTTP.post = function(timeout,url,data) {
+			return %s(timeout,url,data);
 		}
-		Web.jsonDecode = function(json) {
+
+		// JSON
+		function JSON() {};
+		JSON.decode = function(json) {
 			return %s(json);
-		}
-		Web.includeScript = function(url) {
-			%s(url);
 		}
 	`,
 		/* DuderPermission */
@@ -131,11 +132,11 @@ func createRugEnvironment() error {
 		/* DuderRug */
 		bindRugFunction(rugCreate),
 		bindRugFunction(rugAddCommand),
-		/* Web */
-		bindRugFunction(webGet),
-		bindRugFunction(webPost),
-		bindRugFunction(webJSONDecode),
-		bindRugFunction(webIncludeScript))
+		/* HTTP */
+		bindRugFunction(httpGet),
+		bindRugFunction(httpPost),
+		/* JSON */
+		bindRugFunction(jsonDecode))
 
 	if _, err := js.Run(env); err != nil {
 		fmt.Print(env)
@@ -147,38 +148,20 @@ func createRugEnvironment() error {
 	return nil
 }
 
-func getHTTP() http.Client {
-	timeout := time.Duration(5 * time.Second)
+func getHTTPClient(timeout int64) http.Client {
+	//print(fmt.Sprintf("timeout is %d", timeout))
+	Duder.DPrintf("timeout now is '%v'", timeout)
+	to := time.Duration(5 * time.Second)
 	return http.Client{
-		Timeout: timeout}
+		Timeout: to}
 }
 
-func webIncludeScript(call otto.FunctionCall) otto.Value {
-	url := call.Argument(0).String()
+func httpGet(call otto.FunctionCall) otto.Value {
+	var timeout int64
+	timeout, _ = call.Argument(0).ToInteger()
+	url := call.Argument(1).String()
 
-	h := getHTTP()
-	resp, err := h.Get(url)
-	if err != nil {
-		return otto.FalseValue()
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return otto.FalseValue()
-	}
-
-	if _, err := js.Run(string(body)); err != nil {
-		Duder.DPrint("unable to run included script", err.Error())
-	}
-
-	return otto.TrueValue()
-}
-
-func webGet(call otto.FunctionCall) otto.Value {
-	url := call.Argument(0).String()
-
-	h := getHTTP()
+	h := getHTTPClient(timeout)
 	resp, err := h.Get(url)
 	if err != nil {
 		return otto.FalseValue()
@@ -197,12 +180,14 @@ func webGet(call otto.FunctionCall) otto.Value {
 	return otto.FalseValue()
 }
 
-func webPost(call otto.FunctionCall) otto.Value {
-	url := call.Argument(0).String()
-	data := call.Argument(1).Object()
+func httpPost(call otto.FunctionCall) otto.Value {
+	var timeout int64
+	timeout, _ = call.Argument(0).ToInteger()
+	url := call.Argument(1).String()
+	data := call.Argument(2).Object()
+	print(timeout);
+	print(url);
 
-	log.Print(url)
-	//log.Print(data.Object().Keys())
 	for _, k := range data.Keys() {
 		log.Print(k)
 		if v, err := data.Get(k); err == nil {
@@ -213,8 +198,20 @@ func webPost(call otto.FunctionCall) otto.Value {
 	return otto.TrueValue()
 }
 
-func webJSONDecode(call otto.FunctionCall) otto.Value {
-	return otto.FalseValue()
+func jsonDecode(call otto.FunctionCall) otto.Value {
+	text := call.Argument(0).String()
+
+	in := []byte(text)
+	var raw map[string]interface{}
+	if err := json.Unmarshal(in, &raw); err != nil {
+		return otto.FalseValue()
+	}
+
+	if result, err := js.ToValue(raw); err == nil {
+		return result
+	}
+
+	return otto.FalseValue();
 }
 
 func getPermissionsDefinition() string {
