@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -280,15 +279,11 @@ func rugAddCommand(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func getRugStoragePath(rug Rug) string {
-	return strings.TrimSuffix(rug.Path, filepath.Ext(rug.Path)) + ".json"
-}
-
 func rugLoadStorage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		path := getRugStoragePath(rug)
+		path := getRugStorageFile(rug)
 
 		// check if the file exists
 		if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -322,7 +317,7 @@ func rugSaveStorage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 	data := call.Argument(1).String()
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		path := getRugStoragePath(rug)
+		path := getRugStorageFile(rug)
 		if err := ioutil.WriteFile(path, []byte(data), 0644); err != nil {
 			log.Print("unable to save rug storage ", err.Error())
 			return otto.FalseValue()

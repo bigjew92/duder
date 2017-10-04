@@ -2,6 +2,8 @@
 //select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="fontana, ca")
 var weather = new DuderRug("Weather", "Check the weather.");
 
+
+
 weather.padRight = function(text, len) {
     var count = len - text.length;
     var p = "";
@@ -22,6 +24,7 @@ weather.addCommand("weather", function() {
         citystate += cmd.args[i];
     }
 
+
     var yql=encodeURI("select * from weather.forecast where woeid in (select woeid from geo.places(1) where text=\"" + citystate + "\")");
     var url="https://query.yahooapis.com/v1/public/yql?q=" + yql + "&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys";
 
@@ -31,6 +34,7 @@ weather.addCommand("weather", function() {
         cmd.replyToAuthor("no weather results found for that location.");
         return;
     }
+
     var forecast = json.query.results.channel.item.forecast;
     var dates = "";
     var lows = "";

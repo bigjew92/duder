@@ -11,6 +11,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/fatih/color"
+	"github.com/go-fsnotify/fsnotify"
 )
 
 // VERSION contains the current version
@@ -28,6 +29,7 @@ type Instance struct {
 	shutdown        chan os.Signal
 	PermissionsPath string
 	Permissions     permissions
+	RugWatcher      *fsnotify.Watcher
 }
 
 // Duder contains the bot instance
@@ -59,6 +61,13 @@ func main() {
 	// load the rugs
 	if err := LoadRugs(Duder.Config.RugPath); err != nil {
 		log.Fatal("Failed to load rugs, ", err)
+	}
+
+	// watch the rugs
+	if rugWatcher, err := WatchRugs(Duder.Config.RugPath); err != nil {
+		log.Fatal("Failed to watch rugs, ", err)
+	} else {
+		Duder.RugWatcher = rugWatcher
 	}
 
 	// create the Discord session
@@ -145,6 +154,9 @@ func (duder *Instance) teardown() (err error) {
 	if err != nil {
 		return
 	}
+
+	defer duder.RugWatcher.Close()
+
 	return
 }
 

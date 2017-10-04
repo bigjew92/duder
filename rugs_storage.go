@@ -10,9 +10,14 @@ import (
 	"strings"
 )
 
+func getRugStorageFile(rug Rug) string {
+	return strings.TrimSuffix(rug.File, filepath.Ext(rug.File)) + ".json"
+}
+
 // LoadRugStorage description
 func LoadRugStorage(rug Rug) (string, error) {
-	path := strings.TrimSuffix(rug.Path, filepath.Ext(rug.Path))
+	//path := strings.TrimSuffix(rug.File, filepath.Ext(rug.File))
+	path := getRugStorageFile(rug)
 
 	// check if the file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
