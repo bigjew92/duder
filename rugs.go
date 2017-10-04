@@ -26,6 +26,7 @@ type Rug struct {
 	Description string
 	Commands    map[string]RugCommand
 	Object      *otto.Object
+	Path        string
 	teardown    func()
 }
 
@@ -34,6 +35,9 @@ var rugMap = map[string]Rug{}
 
 // js is the JavaScript runtime
 var js *otto.Otto
+
+//
+var rugPath string
 
 func init() {
 	// create the JavaScript runtime
@@ -74,12 +78,12 @@ func LoadRugs(path string) error {
 
 		// read the file
 		Duder.DPrintf("Loading Rug file '%v'", f.Name())
-		if buf, err := ioutil.ReadFile(fmt.Sprintf("%v/%v", path, f.Name())); err != nil {
+		rugPath = fmt.Sprintf("%v/%v", path, f.Name())
+		if buf, err := ioutil.ReadFile(rugPath); err != nil {
 			log.Print("Unable to load Rug file ", f.Name(), " reason ", err.Error())
 		} else {
 			s := string(buf)
 			if _, err := js.Run(fmt.Sprintf("__rbox = function(){ %s }; __rbox();", s)); err != nil {
-				//if _, err := js.Run(s); err != nil {
 				log.Print("Error loading Rug ", err.Error())
 				loadErrors = append(loadErrors, err)
 			}
@@ -87,6 +91,13 @@ func LoadRugs(path string) error {
 	}
 
 	return nil
+}
+
+// AddRug description
+func AddRug(id string, rug Rug) {
+	rug.Path = rugPath
+	log.Print("Adding rug ", rug.Path)
+	rugMap[id] = rug
 }
 
 // RunCommand description
@@ -107,9 +118,9 @@ func RunCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 		if strings.EqualFold("reload", args[0]) {
 			LoadRugs(Duder.Config.RugPath)
 			if len(loadErrors) > 0 {
-				session.ChannelMessageSend(message.ChannelID, "Rugs reloaded with errors.")
+				session.ChannelMessageSend(message.ChannelID, ":octagonal_sign: Rugs reloaded with errors.")
 			} else {
-				session.ChannelMessageSend(message.ChannelID, "Rugs successfully reloaded.")
+				session.ChannelMessageSend(message.ChannelID, ":ok_hand: Rugs successfully reloaded.")
 			}
 			return
 		} else if strings.EqualFold("shutdown", args[0]) {

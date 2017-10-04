@@ -75,6 +75,7 @@ func LoadPermissions(path string) error {
 	return nil
 }
 
+// GetPermissionByName description
 func (p *permissions) GetPermissionByName(name string) permissionDefinition {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
@@ -92,6 +93,7 @@ func (p *permissions) GetPermissionByName(name string) permissionDefinition {
 	return permissionDefinitions[-1]
 }
 
+// GetPermissionByValue description
 func (p *permissions) GetPermissionByValue(value int) permissionDefinition {
 	if perm, ok := permissionDefinitions[value]; ok {
 		return perm
@@ -100,6 +102,7 @@ func (p *permissions) GetPermissionByValue(value int) permissionDefinition {
 	return permissionDefinitions[-1]
 }
 
+// GetPermissions description
 func (p *permissions) GetPermissions(channelID string, userID string) []int {
 	var perms []int
 
@@ -112,6 +115,7 @@ func (p *permissions) GetPermissions(channelID string, userID string) []int {
 	return perms
 }
 
+// AddPermission description
 func (p *permissions) AddPermission(channelID string, userID string, perm int) error {
 	if len(p.Channels) == 0 {
 		p.Channels = make(map[string]permissionsChannel)
@@ -144,6 +148,7 @@ func (p *permissions) AddPermission(channelID string, userID string, perm int) e
 	return nil
 }
 
+// RemovePermission description
 func (p *permissions) RemovePermission(channelID string, userID string, perm int) error {
 	var channel permissionsChannel
 	if c, ok := p.Channels[channelID]; ok {
@@ -177,6 +182,7 @@ func (p *permissions) RemovePermission(channelID string, userID string, perm int
 	return nil
 }
 
+// Save description
 func (p *permissions) Save() {
 	if bytes, err := json.MarshalIndent(p, "", "\t"); err != nil {
 		log.Print("unable to marshal permissions ", err.Error())

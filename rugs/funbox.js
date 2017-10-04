@@ -9,7 +9,7 @@ funbox.addCommand("dice", function() {
         }
     }
     r = Math.getRandomInRange(2, sides);
-    cmd.replyToAuthor("rolled a " + sides + " sided dice and got " + r);
+    cmd.replyToAuthor("rolled a " + sides + " sided :game_die: and got " + r + ".");
 });
 
 funbox.eightBallResponses = new Array(
@@ -36,12 +36,12 @@ funbox.eightBallResponses = new Array(
 );
 
 funbox.addCommand("8ball", function() {
-    r = Math.getRandomInRange(0, rug.eightBallResponses.length - 1);
-    cmd.replyToAuthor("I rub my magic :8ball: balls and the response is `" + rug.eightBallResponses[r] + "`");
+    var r = Math.getRandomInRange(0, rug.eightBallResponses.length - 1);
+    cmd.replyToAuthor("I rub my magic :8ball: balls and the response is `" + rug.eightBallResponses[r] + "`.");
 });
 
-funbox.lebowskiQuoteCallback = function( text ) {
-    json = JSON.decode(text);
+funbox.lebowskiQuoteCallback = function( content ) {
+    json = JSON.parse(content);
     quote = "```";
     for(var k in json['quote']['lines']) {
         line = json['quote']['lines'][k];
@@ -51,20 +51,47 @@ funbox.lebowskiQuoteCallback = function( text ) {
     cmd.replyToChannel(quote);
 }
 
-funbox.bashQuoteCallback = function( text ) {
-    print("bash!");
+funbox.bashQuoteCallback = function( content ) {
+    print(content);
+    var id = content.match("(?s)title=\"Permanent link to this quote.\"><b>.+?</b></a>");
+    id = id[0].substring(42);
+    id = id.substring(0,id.length-8);
+    var link = "<http://bash.org/?quote=" + id + ">";
+
+    var quote = content.match("(?s)<p class=\"qt\">.+?</p>");
+    quote = quote[0].substring(14);
+    quote = quote.substring(0,quote.length-4);
+    quote = unescape(quote);
+    quote = quote.decodeHTML();
+    quote = quote.replace(new RegExp("<br />", 'g'), "");
+
+    cmd.replyToChannel( link + "\n```" + quote + "```");
 }
 
-funbox.quoteSources = {
-    "http://lebowski.me/api/quotes/random": funbox.lebowskiQuoteCallback,
-    "http://bash.org/?random1": funbox.bashQuoteCallback
-};
+funbox.quoteSources = [
+    { name: "lebowski", url: "http://lebowski.me/api/quotes/random", callback: funbox.lebowskiQuoteCallback },
+    { name: "bash", url: "http://bash.org/?random1", callback: funbox.bashQuoteCallback }
+];
 
 funbox.addCommand("quote", function() {
-    var keys = Object.keys(rug.quoteSources);
-    r = Math.getRandomInRange(0, keys.length - 1);
-    var key = keys[r];
-    key = "http://lebowski.me/api/quotes/random";
-    var text = HTTP.get(4, key);
-    rug.quoteSources[key]( text );
+    //var source = (cmd.args.length > 1) ? cmd.args[1].toLowerCase() : "status";
+    var source = null;
+    if (cmd.args.length > 1) {
+        var name = cmd.args[1].toLowerCase();
+        for(var i = 0; i < rug.quoteSources.length; i++) {
+            if (rug.quoteSources[i]['name'] == name) {
+                source = rug.quoteSources[i];
+                break;
+            }
+        }
+        if (source == null) {
+            cmd.replyToAuthor(cmd.args[1] + " isn't a quote source.");
+            return;
+        }
+    } else {
+        var r = Math.getRandomInRange(0, rug.quoteSources.length - 1);
+        source = rug.quoteSources[r];
+    }
+    var content = HTTP.get(4, source.url);
+    source.callback(content);
 });

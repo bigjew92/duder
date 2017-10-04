@@ -2,17 +2,17 @@ var admin = new DuderRug("Admin", "Duder administration tools.");
 
 admin.addCommand("setuser", function() {
     if (!cmd.author.isOwner) {
-        cmd.replyToChannel("Nope.");
+        cmd.replyToAuthor("you are not authorized.");
         return;
     } else if ((cmd.mentions.length != 1) || (cmd.args.length < 3)) {
-        cmd.replyToChannel("Usage: `setuser @mention (+/-)permission`")
+        cmd.replyToAuthor("usage: `setuser @mention (+/-)permission`");
         return;
     }
 
     var modifier = cmd.args[2].substring(0, 1);
 
     if (modifier != "+" && modifier != "-") {
-        cmd.replyToChannel("The permission must start with + or - to add or remove");
+        cmd.replyToAuthor("the permission must start with `+` or `-` to add or remove.");
         return;
     }
 
@@ -20,50 +20,47 @@ admin.addCommand("setuser", function() {
 
     resp = cmd.mentions[0].modifyPermission(cmd.channelID, perm, modifier == "+");
     if (resp != null) {
-        cmd.replyToChannel("Unable to add permission: " + resp);
+        cmd.replyToAuthor("unable to add permission: *" + resp + "*");
     } else {
         perms = cmd.mentions[0].getPermissions(cmd.channelID);
         if (perms.length == 0) {
-            cmd.replyToChannel(cmd.mentions[0].username + " doesn't have any permissions");
+            cmd.replyToAuthor(cmd.mentions[0].username + " doesn't have any permissions.");
         } else {
-            cmd.replyToChannel(cmd.mentions[0].username + " now has permission(s) " + DuderPermission.getNames(perms));
+            cmd.replyToAuthor(cmd.mentions[0].username + " now has permission(s) " + DuderPermission.getNames(perms) + ".");
         }
     }
 });
 
 admin.addCommand("viewuser", function() {
     if (!cmd.author.isOwner) {
-        cmd.replyToChannel("Nope.");
+        cmd.replyToAuthor("you are not authorized.");
         return;
     } else if ((cmd.mentions.length != 1) || (cmd.args.length != 2)) {
-        cmd.replyToChannel("Usage: `viewuser @mention`")
+        cmd.replyToAuthor("usage: `viewuser @mention`")
         return;
     }
 
-    perms = cmd.mentions[0].getPermissions(cmd.channelID);
+    var perms = cmd.mentions[0].getPermissions(cmd.channelID);
     if (perms.length == 0) {
-        cmd.replyToChannel(cmd.mentions[0].username + " doesn't have any permissions");
+        cmd.replyToAuthor(cmd.mentions[0].username + " doesn't have any permissions.");
     } else {
-        cmd.replyToChannel(cmd.mentions[0].username + " has permission(s) " + DuderPermission.getNames(perms));
+        cmd.replyToAuthor(cmd.mentions[0].username + " has permission(s) " + DuderPermission.getNames(perms) + ".");
+    }
+});
+
+admin.addCommand("viewself", function() {
+    if (cmd.author.isOwner) {
+        cmd.replyToAuthor("you are the owner.");
+        return;
+    }
+
+    var perms = cmd.author.getPermissions(cmd.channelID);
+    if (perms.length == 0) {
+        cmd.replyToAuthor("you don't have any permissions.");
+    } else {
+        cmd.replyToAuthor("you have permission(s) " + DuderPermission.getNames(perms) + ".");
     }
 });
 
 admin.addCommand("test", function() {
-    /*
-    if (!cmd.author.isOwner) {
-        cmd.replyToChannel("Nope.");
-        return;
-    }
-
-    cmd.replyToChannel(cmd.channelID);
-    var token = "077d2e426a14cc040cd19361c7a8cca0";
-    var app_key = "d5a9622a50a05da4378eefbd2f0686de";
-    Web.post("https://api.trello.com/1/tokens/" + token + "/webhooks/?key=" + app_key, {
-        description: "My first webhook",
-        callbackURL: "http://www.mywebsite.com/trelloCallback",
-        idModel: "4d5ea62fd76aa1136000000c",
-    });
-    */
-
-    //cmd.replyToChannel(rug);
 });

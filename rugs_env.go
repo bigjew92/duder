@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
-	"encoding/json"
 
 	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/robertkrimen/otto"
@@ -67,6 +69,9 @@ func createRugEnvironment() error {
 			add = (add == true);
 			return %s(channelID, this.id, permission, add);
 		}
+		DuderUser.getUsernameByID = function(channelID, userID) {
+			return %s(channelID, userID);
+		}
 
 		// Define DuderCommand class
 		function DuderCommand() {
@@ -95,6 +100,16 @@ func createRugEnvironment() error {
 			%s(this, trigger, exec);
 		}
 
+		DuderRug.prototype.loadStorage = function() {
+			data = %s(this);
+			return JSON.parse(data);
+		}
+
+		DuderRug.prototype.saveStorage = function(json) {
+			data = JSON.stringify(json, null, "\t");
+			return %s(this, data);
+		}
+
 		// Math
 		Math.getRandomInRange = function(min,max) {
 			min = Math.ceil(min);
@@ -105,6 +120,11 @@ func createRugEnvironment() error {
 			return Math.max(min, Math.min(val, max));
 		}
 
+		// String
+		String.prototype.decodeHTML = function() {
+			return %s(this);
+		};
+
 		// HTTP
 		function HTTP() {};
 		HTTP.get = function(timeout,url) {
@@ -113,12 +133,6 @@ func createRugEnvironment() error {
 		HTTP.post = function(timeout,url,data) {
 			return %s(timeout,url,data);
 		}
-
-		// JSON
-		function JSON() {};
-		JSON.decode = function(json) {
-			return %s(json);
-		}
 	`,
 		/* DuderPermission */
 		getPermissionsDefinition(),
@@ -126,17 +140,20 @@ func createRugEnvironment() error {
 		bindRugFunction(rugUserGetIsOwner),
 		bindRugFunction(rugUserGetPermissions),
 		bindRugFunction(rugUserModifyPermission),
+		bindRugFunction(rugUserGetUsernameByID),
 		/* DuderCommand */
 		bindRugFunction(rugCommandReplyToChannel),
 		bindRugFunction(rugCommandReplyToAuthor),
 		/* DuderRug */
 		bindRugFunction(rugCreate),
 		bindRugFunction(rugAddCommand),
+		bindRugFunction(rugLoadStorage),
+		bindRugFunction(rugSaveStorage),
+		/* Strings */
+		bindRugFunction(stringDecodeHTML),
 		/* HTTP */
 		bindRugFunction(httpGet),
-		bindRugFunction(httpPost),
-		/* JSON */
-		bindRugFunction(jsonDecode))
+		bindRugFunction(httpPost))
 
 	if _, err := js.Run(env); err != nil {
 		fmt.Print(env)
@@ -149,8 +166,6 @@ func createRugEnvironment() error {
 }
 
 func getHTTPClient(timeout int64) http.Client {
-	//print(fmt.Sprintf("timeout is %d", timeout))
-	Duder.DPrintf("timeout now is '%v'", timeout)
 	to := time.Duration(5 * time.Second)
 	return http.Client{
 		Timeout: to}
@@ -185,8 +200,8 @@ func httpPost(call otto.FunctionCall) otto.Value {
 	timeout, _ = call.Argument(0).ToInteger()
 	url := call.Argument(1).String()
 	data := call.Argument(2).Object()
-	print(timeout);
-	print(url);
+	print(timeout)
+	print(url)
 
 	for _, k := range data.Keys() {
 		log.Print(k)
@@ -196,22 +211,6 @@ func httpPost(call otto.FunctionCall) otto.Value {
 	}
 
 	return otto.TrueValue()
-}
-
-func jsonDecode(call otto.FunctionCall) otto.Value {
-	text := call.Argument(0).String()
-
-	in := []byte(text)
-	var raw map[string]interface{}
-	if err := json.Unmarshal(in, &raw); err != nil {
-		return otto.FalseValue()
-	}
-
-	if result, err := js.ToValue(raw); err == nil {
-		return result
-	}
-
-	return otto.FalseValue();
 }
 
 func getPermissionsDefinition() string {
@@ -242,7 +241,8 @@ func rugCreate(call otto.FunctionCall) otto.Value {
 	rug.Commands = map[string]RugCommand{}
 	rug.Object = obj
 
-	rugMap[fmt.Sprintf("%v", obj)] = rug
+	//rugMap[fmt.Sprintf("%v", obj)] = rug
+	AddRug(fmt.Sprintf("%v", obj), rug)
 
 	Duder.DPrintf("Created Rug '%v'", name)
 
@@ -280,6 +280,69 @@ func rugAddCommand(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
+func getRugStoragePath(rug Rug) string {
+	return strings.TrimSuffix(rug.Path, filepath.Ext(rug.Path)) + ".json"
+}
+
+func rugLoadStorage(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+
+	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
+		path := getRugStoragePath(rug)
+
+		// check if the file exists
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			log.Printf("Storage file for '%v' not found; creating new one...", rug.Name)
+
+			// create the storage file
+			if e := ioutil.WriteFile(path, []byte("{}"), 0644); e != nil {
+				//return "{}", errors.New(fmt.Sprint("unable to create storage file ", path, e.Error()))
+				log.Print("unable to create storage file ", path)
+				return otto.FalseValue()
+			}
+			log.Printf("Storage file for '%v' created", rug.Name)
+		} else {
+			var bytes []byte
+			if bytes, err = ioutil.ReadFile(path); err != nil {
+				//return "{}", errors.New(fmt.Sprint("unable to read storage file ", path, err.Error()))
+				log.Print("unable to read storage file ", path)
+				return otto.FalseValue()
+			}
+
+			if result, e := js.ToValue(string(bytes)); e == nil {
+				return result
+			}
+		}
+		return otto.FalseValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugSaveStorage(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	data := call.Argument(1).String()
+	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
+		path := getRugStoragePath(rug)
+		if err := ioutil.WriteFile(path, []byte(data), 0644); err != nil {
+			log.Print("unable to save rug storage ", err.Error())
+			return otto.FalseValue()
+		}
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func stringDecodeHTML(call otto.FunctionCall) otto.Value {
+	text := call.Argument(0).String()
+	text = html.UnescapeString(text)
+
+	if result, err := js.ToValue(text); err == nil {
+		return result
+	}
+
+	return otto.NullValue()
+}
+
 func rugUserModifyPermission(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	userID := call.Argument(1).String()
@@ -310,6 +373,29 @@ func rugUserModifyPermission(call otto.FunctionCall) otto.Value {
 		}
 	}
 
+	return otto.NullValue()
+}
+
+func rugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+
+	username := "Unknown"
+
+	if channel, err := Duder.Session.Channel(channelID); err == nil {
+		if guild, err := Duder.Session.Guild(channel.GuildID); err == nil {
+			for _, member := range guild.Members {
+				if member.User.ID == userID {
+					username = member.User.Username
+					break
+				}
+			}
+		}
+	}
+
+	if result, err := js.ToValue(username); err == nil {
+		return result
+	}
 	return otto.NullValue()
 }
 

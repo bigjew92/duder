@@ -35,7 +35,7 @@ var Duder = &Instance{}
 
 func init() {
 	flag.StringVar(&Duder.ConfigPath, "config", "duder.toml", "Location of the configuration file, if not found it will be generated (default duder.toml)")
-	flag.StringVar(&Duder.PermissionsPath, "permissions", "duder.json", "Location of the permissions file (default duder.json)")
+	flag.StringVar(&Duder.PermissionsPath, "permissions", "duder_permissions.json", "Location of the permissions file (default duder_permissions.json)")
 	flag.BoolVar(&Duder.DebugMode, "debug", true, "Enable debug mode")
 	flag.Parse()
 
