@@ -15,7 +15,7 @@ raffle.setActive = function(active) {
         this.storage[cmd.channelID] = {};
     }
     this.storage[cmd.channelID]['active'] = active;
-    rug.saveStorage(this.storage)
+    rug.saveStorage(this.storage);
 }
 
 raffle.getDescription = function() {
@@ -32,7 +32,7 @@ raffle.setDescription = function(description) {
         this.storage[cmd.channelID] = {};
     }
     this.storage[cmd.channelID]['description'] = description;
-    rug.saveStorage(this.storage)
+    rug.saveStorage(this.storage);
 }
 
 raffle.getCreator = function() {
@@ -49,7 +49,7 @@ raffle.setCreator = function(creatorID) {
         this.storage[cmd.channelID] = {};
     }
     this.storage[cmd.channelID]['creator'] = creatorID;
-    rug.saveStorage(this.storage)
+    rug.saveStorage(this.storage);
 }
 
 raffle.addParticipant = function(participantID) {
@@ -60,7 +60,7 @@ raffle.addParticipant = function(participantID) {
         this.storage[cmd.channelID]['participants'] = [];
     }
     this.storage[cmd.channelID]['participants'].push(participantID);
-    rug.saveStorage(this.storage)
+    rug.saveStorage(this.storage);
 }
 
 raffle.hasParticipant = function(participantID) {
@@ -93,7 +93,7 @@ raffle.clearParticipants = function() {
         this.storage[cmd.channelID] = {};
     }
     this.storage[cmd.channelID]['participants'] = [];
-    rug.saveStorage(this.storage)
+    rug.saveStorage(this.storage);
 }
 
 raffle.addCommand("raffle", function() {

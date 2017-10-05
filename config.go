@@ -33,8 +33,8 @@ rug_path = "rugs"
 prefix = "!d"
 `
 
-// LoadConfig loads the configuration file
-func LoadConfig(path string) error {
+// loadConfig loads the configuration file
+func loadConfig(path string) error {
 	// validate the config file
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
@@ -62,25 +62,25 @@ func LoadConfig(path string) error {
 		log.Printf("Configuration file %v created", path)
 
 		// load the configuration data
-		if _, err := toml.Decode(configData, &Duder.Config); err != nil {
+		if _, err := toml.Decode(configData, &Duder.config); err != nil {
 			return err
 		}
 	} else {
 		// load the configuration file
-		if _, err := toml.DecodeFile(path, &Duder.Config); err != nil {
+		if _, err := toml.DecodeFile(path, &Duder.config); err != nil {
 			return err
 		}
 	}
 
 	// validate the prefix
-	Duder.Config.Prefix = strings.TrimSpace(Duder.Config.Prefix)
-	if len(Duder.Config.Prefix) == 0 {
+	Duder.config.Prefix = strings.TrimSpace(Duder.config.Prefix)
+	if len(Duder.config.Prefix) == 0 {
 		return errors.New("'prefix' is undefined in configuration file")
 	}
 
 	// ensure the bot token has the 'Bot ' prefix
-	if !strings.HasPrefix(Duder.Config.BotToken, "Bot ") {
-		Duder.Config.BotToken = fmt.Sprintf("Bot %s", Duder.Config.BotToken)
+	if !strings.HasPrefix(Duder.config.BotToken, "Bot ") {
+		Duder.config.BotToken = fmt.Sprintf("Bot %s", Duder.config.BotToken)
 	}
 
 	return nil

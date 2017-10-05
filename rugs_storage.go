@@ -11,7 +11,7 @@ import (
 )
 
 func getRugStorageFile(rug Rug) string {
-	return strings.TrimSuffix(rug.File, filepath.Ext(rug.File)) + ".json"
+	return strings.TrimSuffix(rug.file, filepath.Ext(rug.file)) + ".json"
 }
 
 // LoadRugStorage description
@@ -21,7 +21,7 @@ func LoadRugStorage(rug Rug) (string, error) {
 
 	// check if the file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Printf("Storage file for '%v' not found; creating new one...", rug.Name)
+		log.Printf("Storage file for '%v' not found; creating new one...", rug.name)
 
 		// create the storage file
 		if e := ioutil.WriteFile(path, []byte("{}"), 0644); e != nil {

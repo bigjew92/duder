@@ -1,8 +1,36 @@
-//https://query.yahooapis.com/v1/public/yql?q=select%20item.condition%20from%20weather.forecast%20where%20woeid%20%3D%202487889&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys
-//select item.condition from weather.forecast where woeid in (select woeid from geo.places(1) where text="fontana, ca")
 var weather = new DuderRug("Weather", "Check the weather.");
+weather.storage = weather.loadStorage();
 
+weather.getUserLocation = function(userID) {
+    if (this.storage['users'] == undefined) {
+        return false;
+    }
+    for (var i = 0; i < this.storage['users'].length; i++) {
+        var user = this.storage['users'][i];
+        if (user['userID'] == userID) {
+            return user['location'];
+        }
+    }
+    return false;
+}
 
+weather.setUserLocation = function(userID,location) {
+    if (this.storage['users'] == undefined) {
+        this.storage['users'] = [];
+    }
+    var found = false;
+    for (var i = 0; i < this.storage['users'].length; i++) {
+        if (this.storage['users'][i]['userID'] == userID) {
+            this.storage['users'][i]['location'] = location;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        this.storage['users'].push( {'userID': userID, 'location': location});
+    }
+    rug.saveStorage(this.storage);
+}
 
 weather.padRight = function(text, len) {
     var count = len - text.length;
@@ -14,16 +42,20 @@ weather.padRight = function(text, len) {
 }
 
 weather.addCommand("weather", function() {
-    if (cmd.args.length < 2) {
-        cmd.replyToAuthor("usage: `weather city, ST`");
-        return;
-    }
-
     var citystate = "";
-    for(var i = 1; i < cmd.args.length; i++) {
-        citystate += cmd.args[i];
-    }
 
+    if (cmd.args.length < 2) {
+        var location = rug.getUserLocation(cmd.author.id);
+        if (location == false) {
+            cmd.replyToAuthor("usage: `weather city, ST`");
+            return;
+        }
+        citystate = location;
+    } else {
+        for(var i = 1; i < cmd.args.length; i++) {
+            citystate += cmd.args[i] + " ";
+        }
+    }
 
     var yql=encodeURI("select * from weather.forecast where woeid in (select woeid from geo.places(1) where text=\"" + citystate + "\")");
     var url="https://query.yahooapis.com/v1/public/yql?q=" + yql + "&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys";
@@ -56,5 +88,6 @@ weather.addCommand("weather", function() {
     var msg = ":white_sun_cloud: " + title + "\n";
     msg += "`" + dates + "|\n" + lows+ "|\n" + highs + "|\n" + text + "|" + "`";
 
+    rug.setUserLocation(cmd.author.id, citystate);
     cmd.replyToChannel(msg);
 });

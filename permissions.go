@@ -16,7 +16,7 @@ type permissionsChannel struct {
 
 type permissions struct {
 	Channels map[string]permissionsChannel
-	path     string
+	Path     string
 }
 
 const (
@@ -42,8 +42,8 @@ func init() {
 	permissionDefinitions[2] = permissionDefinition{Value: 2, Names: []string{"Owner"}}
 }
 
-// LoadPermissions description
-func LoadPermissions(path string) error {
+// loadPermissions description
+func loadPermissions(path string) error {
 	// validate the config file
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
@@ -66,17 +66,17 @@ func LoadPermissions(path string) error {
 			return errors.New(fmt.Sprint("unable to read permissions file ", path, err.Error()))
 		}
 
-		if err := json.Unmarshal(bytes, &Duder.Permissions); err != nil {
+		if err := json.Unmarshal(bytes, &Duder.permissions); err != nil {
 			return errors.New(fmt.Sprint("unable to load permissions file ", path, err.Error()))
 		}
 	}
-	Duder.Permissions.path = path
+	Duder.permissions.Path = path
 
 	return nil
 }
 
-// GetPermissionByName description
-func (p *permissions) GetPermissionByName(name string) permissionDefinition {
+// getByName description
+func (p *permissions) getByName(name string) permissionDefinition {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return permissionDefinitions[-1]
@@ -93,8 +93,8 @@ func (p *permissions) GetPermissionByName(name string) permissionDefinition {
 	return permissionDefinitions[-1]
 }
 
-// GetPermissionByValue description
-func (p *permissions) GetPermissionByValue(value int) permissionDefinition {
+// getByValue description
+func (p *permissions) getByValue(value int) permissionDefinition {
 	if perm, ok := permissionDefinitions[value]; ok {
 		return perm
 	}
@@ -102,8 +102,8 @@ func (p *permissions) GetPermissionByValue(value int) permissionDefinition {
 	return permissionDefinitions[-1]
 }
 
-// GetPermissions description
-func (p *permissions) GetPermissions(channelID string, userID string) []int {
+// getAll description
+func (p *permissions) getAll(channelID string, userID string) []int {
 	var perms []int
 
 	if channel, ok := p.Channels[channelID]; ok {
@@ -115,8 +115,8 @@ func (p *permissions) GetPermissions(channelID string, userID string) []int {
 	return perms
 }
 
-// AddPermission description
-func (p *permissions) AddPermission(channelID string, userID string, perm int) error {
+// addToUser description
+func (p *permissions) addToUser(channelID string, userID string, perm int) error {
 	if len(p.Channels) == 0 {
 		p.Channels = make(map[string]permissionsChannel)
 	}
@@ -144,12 +144,12 @@ func (p *permissions) AddPermission(channelID string, userID string, perm int) e
 	perms = append(perms, perm)
 
 	channel.Users[userID] = perms
-	p.Save()
+	p.save()
 	return nil
 }
 
-// RemovePermission description
-func (p *permissions) RemovePermission(channelID string, userID string, perm int) error {
+// removeFromUser description
+func (p *permissions) removeFromUser(channelID string, userID string, perm int) error {
 	var channel permissionsChannel
 	if c, ok := p.Channels[channelID]; ok {
 		channel = c
@@ -178,16 +178,16 @@ func (p *permissions) RemovePermission(channelID string, userID string, perm int
 	}
 
 	channel.Users[userID] = newPerms
-	p.Save()
+	p.save()
 	return nil
 }
 
-// Save description
-func (p *permissions) Save() {
+// save description
+func (p *permissions) save() {
 	if bytes, err := json.MarshalIndent(p, "", "\t"); err != nil {
 		log.Print("unable to marshal permissions ", err.Error())
 	} else {
-		if err := ioutil.WriteFile(p.path, bytes, 0644); err != nil {
+		if err := ioutil.WriteFile(p.Path, bytes, 0644); err != nil {
 			log.Print("unable to save permissions ", err.Error())
 		}
 	}

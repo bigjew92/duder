@@ -21,7 +21,7 @@ import (
 func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 	name := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 	name = strings.Replace(name, "main.", "__duder_", -1)
-	Duder.DPrint("Binding ", name)
+	Duder.dprint("Binding ", name)
 	js.Set(name, f)
 	return name
 }
@@ -235,15 +235,15 @@ func rugCreate(call otto.FunctionCall) otto.Value {
 	description := call.Argument(2).String()
 
 	rug := Rug{}
-	rug.Name = name
-	rug.Description = description
-	rug.Commands = map[string]RugCommand{}
-	rug.Object = obj
+	rug.name = name
+	rug.description = description
+	rug.commands = map[string]rugCommand{}
+	rug.object = obj
 
 	//rugMap[fmt.Sprintf("%v", obj)] = rug
-	AddRug(fmt.Sprintf("%v", obj), rug)
+	addRug(rug)
 
-	Duder.DPrintf("Created Rug '%v'", name)
+	Duder.dprintf("Created Rug '%v'", name)
 
 	return otto.Value{}
 }
@@ -254,26 +254,26 @@ func rugAddCommand(call otto.FunctionCall) otto.Value {
 	// validate the trigger
 	trigger := strings.TrimSpace(call.Argument(1).String())
 	if len(trigger) == 0 {
-		Duder.DPrintf("Unable to add command to Rug '%v', trigger is empty", rugObj)
+		Duder.dprintf("Unable to add command to Rug '%v', trigger is empty", rugObj)
 		return otto.Value{}
 	}
 
 	// validate the execution code
 	exec := strings.TrimSpace(call.Argument(2).String())
 	if len(exec) == 0 {
-		Duder.DPrintf("Unable to add command '%v' to Rug '%v', trigger is empty", trigger, rugObj)
+		Duder.dprintf("Unable to add command '%v' to Rug '%v', trigger is empty", trigger, rugObj)
 		return otto.Value{}
 	}
 
 	// add to parent rug
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		rugCmd := RugCommand{}
-		rugCmd.Trigger = trigger
-		rugCmd.Exec = fmt.Sprintf("__execCmd = %s; __execCmd()", exec)
-		rug.Commands[trigger] = rugCmd
-		Duder.DPrintf("Added command '%v' to Rug '%v'", trigger, rug.Name)
+		rugCmd := rugCommand{}
+		rugCmd.trigger = trigger
+		rugCmd.exec = fmt.Sprintf("__execCmd = %s; __execCmd()", exec)
+		rug.commands[trigger] = rugCmd
+		Duder.dprintf("Added command '%v' to Rug '%v'", trigger, rug.name)
 	} else {
-		Duder.DPrintf("Unable to add command to Rug '%v'", rugObj)
+		Duder.dprintf("Unable to add command to Rug '%v'", rugObj)
 	}
 
 	return otto.Value{}
@@ -287,7 +287,7 @@ func rugLoadStorage(call otto.FunctionCall) otto.Value {
 
 		// check if the file exists
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			log.Printf("Storage file for '%v' not found; creating new one...", rug.Name)
+			log.Printf("Storage file for '%v' not found; creating new one...", rug.name)
 
 			// create the storage file
 			if e := ioutil.WriteFile(path, []byte("{}"), 0644); e != nil {
@@ -295,7 +295,7 @@ func rugLoadStorage(call otto.FunctionCall) otto.Value {
 				log.Print("unable to create storage file ", path)
 				return otto.FalseValue()
 			}
-			log.Printf("Storage file for '%v' created", rug.Name)
+			log.Printf("Storage file for '%v' created", rug.name)
 		} else {
 			var bytes []byte
 			if bytes, err = ioutil.ReadFile(path); err != nil {
@@ -344,7 +344,7 @@ func rugUserModifyPermission(call otto.FunctionCall) otto.Value {
 	permName := call.Argument(2).String()
 	add, _ := call.Argument(3).ToBoolean()
 
-	perm := Duder.Permissions.GetPermissionByName(permName)
+	perm := Duder.permissions.getByName(permName)
 	if perm.Value == -1 {
 		if result, e := js.ToValue(fmt.Sprintf("invalid permission '%s'", permName)); e == nil {
 			return result
@@ -353,14 +353,14 @@ func rugUserModifyPermission(call otto.FunctionCall) otto.Value {
 	}
 
 	if add {
-		if err := Duder.Permissions.AddPermission(channelID, userID, perm.Value); err != nil {
+		if err := Duder.permissions.addToUser(channelID, userID, perm.Value); err != nil {
 			if result, e := js.ToValue(err.Error()); e == nil {
 				return result
 			}
 			return otto.TrueValue()
 		}
 	} else {
-		if err := Duder.Permissions.RemovePermission(channelID, userID, perm.Value); err != nil {
+		if err := Duder.permissions.removeFromUser(channelID, userID, perm.Value); err != nil {
 			if result, e := js.ToValue(err.Error()); e == nil {
 				return result
 			}
@@ -377,8 +377,8 @@ func rugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 
 	username := "Unknown"
 
-	if channel, err := Duder.Session.Channel(channelID); err == nil {
-		if guild, err := Duder.Session.Guild(channel.GuildID); err == nil {
+	if channel, err := Duder.session.Channel(channelID); err == nil {
+		if guild, err := Duder.session.Guild(channel.GuildID); err == nil {
 			for _, member := range guild.Members {
 				if member.User.ID == userID {
 					username = member.User.Username
@@ -396,7 +396,7 @@ func rugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 
 func rugUserGetIsOwner(call otto.FunctionCall) otto.Value {
 	userID := call.Argument(0).String()
-	if userID == Duder.Config.OwnerID {
+	if userID == Duder.config.OwnerID {
 		return otto.TrueValue()
 	}
 	return otto.FalseValue()
@@ -405,7 +405,7 @@ func rugUserGetIsOwner(call otto.FunctionCall) otto.Value {
 func rugUserGetPermissions(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	userID := call.Argument(1).String()
-	perms := Duder.Permissions.GetPermissions(channelID, userID)
+	perms := Duder.permissions.getAll(channelID, userID)
 
 	if result, err := js.Run(rugutils.ConvertUserPermission(perms)); err == nil {
 		return result
@@ -418,7 +418,7 @@ func rugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	content := call.Argument(1).String()
 
-	Duder.Session.ChannelMessageSend(channelID, content)
+	Duder.session.ChannelMessageSend(channelID, content)
 
 	return otto.Value{}
 }
@@ -431,9 +431,9 @@ func rugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
 	mention, _ := call.Argument(4).ToBoolean()
 
 	if mention {
-		Duder.Session.ChannelMessageSend(channelID, fmt.Sprintf("<@%s> %s", authorID, content))
+		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("<@%s> %s", authorID, content))
 	} else {
-		Duder.Session.ChannelMessageSend(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
+		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
 	}
 
 	return otto.Value{}

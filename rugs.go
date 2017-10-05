@@ -16,20 +16,20 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-// RugCommand defines the rug command
-type RugCommand struct {
-	Trigger     string
-	Exec        string
-	Permissions []int
+// rugCommand defines the rug command
+type rugCommand struct {
+	trigger     string
+	exec        string
+	permissions []int
 }
 
 // Rug defines the rug
 type Rug struct {
-	Name        string
-	Description string
-	Commands    map[string]RugCommand
-	Object      *otto.Object
-	File        string
+	name        string
+	description string
+	commands    map[string]rugCommand
+	object      *otto.Object
+	file        string
 	teardown    func()
 	loaded      time.Time
 }
@@ -54,8 +54,8 @@ func init() {
 	}
 }
 
-// LoadRugs loads all the Rugs from the Rug path
-func LoadRugs(path string) error {
+// loadRugs loads all the Rugs from the Rug path
+func loadRugs(path string) error {
 	// validate the rug path
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
@@ -103,7 +103,7 @@ func LoadRugs(path string) error {
 // LoadRug description
 func loadRug(file string) {
 	// read the file
-	Duder.DPrintf("Loading Rug file '%v'", file)
+	Duder.dprintf("Loading Rug file '%v'", file)
 	rugFile = file
 	if buf, err := ioutil.ReadFile(rugFile); err != nil {
 		log.Print("Unable to load Rug file ", file, " reason ", err.Error())
@@ -116,8 +116,8 @@ func loadRug(file string) {
 	}
 }
 
-// WatchRugs description
-func WatchRugs(path string) (*fsnotify.Watcher, error) {
+// watchRugs description
+func watchRugs(path string) (*fsnotify.Watcher, error) {
 	// validate the rug path
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
@@ -130,26 +130,35 @@ func WatchRugs(path string) (*fsnotify.Watcher, error) {
 		return nil, fmt.Errorf("Unable to create Rug watcher: %v", err)
 	}
 
-	go func(chan os.Signal) {
+	//go func(chan os.Signal) {
+	go func() {
 		for {
 			select {
 			case event := <-rugWatcher.Events:
-				log.Println("event:", event)
 				if event.Op&fsnotify.Write == fsnotify.Write {
-					log.Println("modified file:", event.Name)
-
-					if rug, e := getRugByFile(filepath.ToSlash(event.Name)); e == nil {
-						log.Print("rug loaded at ", rug.loaded, " current time is ", time.Now())
-						//duration := time.Since(rug.loaded)
-						//if duration.Mil
-					} else {
-						log.Print("Error finding rug", err)
+					// fix filename slashes
+					file := filepath.ToSlash(event.Name)
+					// make sure the file is .js
+					if strings.HasSuffix(file, ".js") {
+						//log.Println("file modified:", file)
+						if rug, e := getRugByFile(file); e == nil {
+							//log.Print("rug loaded at ", rug.loaded, " current time is ", time.Now())
+							duration := time.Since(rug.loaded)
+							if duration.Seconds() > 0.5 {
+								key := getRugKey(rug)
+								delete(rugMap, key)
+								loadRug(file)
+							}
+						} else {
+							log.Print("Error finding rug", err)
+						}
 					}
 				}
 			}
 
 		}
-	}(Duder.shutdown)
+		//}(Duder.shutdownSignal)
+	}()
 
 	err = rugWatcher.Add(path)
 	if err != nil {
@@ -161,69 +170,34 @@ func WatchRugs(path string) (*fsnotify.Watcher, error) {
 	return rugWatcher, nil
 }
 
-// AddRug description
-func AddRug(id string, rug Rug) {
-	rug.File = rugFile
-	rug.loaded = time.Now()
-	log.Print("Adding rug ", rug.File)
-	rugMap[id] = rug
+// getRugKey
+func getRugKey(rug Rug) string {
+	return fmt.Sprintf("%v", rug.object)
 }
 
+// addRug description
+func addRug(rug Rug) {
+	rug.file = rugFile
+	rug.loaded = time.Now()
+	log.Print("Adding rug ", rug.file)
+	rugMap[getRugKey(rug)] = rug
+}
+
+// getRugByFile description
 func getRugByFile(file string) (Rug, error) {
-	// check each rug to find the matching command
-	for _, r := range rugMap {
-		if r.File == file {
-			return r, nil
+	// check each rug to find the matching file
+	for _, rug := range rugMap {
+		if rug.file == file {
+			return rug, nil
 		}
 	}
 	return Rug{}, errors.New("Unable to find rug")
 }
 
-// RunCommand description
-func RunCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
-	// strip the command prefix from the message content
-	content := message.Content[len(Duder.Config.Prefix)+1 : len(message.Content)]
-	content = strings.TrimSpace(content)
-
-	// get the root command
-	args := rugutils.ParseArguments(content)
-	if len(args) == 0 {
-		return
-	}
-	Duder.DPrintf("Root command '%s'", args[0])
-
-	// core commands
-	if message.Author.ID == Duder.Config.OwnerID {
-		if strings.EqualFold("reload", args[0]) {
-			LoadRugs(Duder.Config.RugPath)
-			if len(rugLoadErrors) > 0 {
-				session.ChannelMessageSend(message.ChannelID, ":octagonal_sign: Rugs reloaded with errors.")
-			} else {
-				session.ChannelMessageSend(message.ChannelID, ":ok_hand: Rugs successfully reloaded.")
-			}
-			return
-		} else if strings.EqualFold("shutdown", args[0]) {
-			session.ChannelMessageSend(message.ChannelID, "Goodbye.")
-			Duder.Shutdown()
-			return
-		}
-	}
-
-	// check each rug to find the matching command
-	for _, rug := range rugMap {
-		for _, rugCmd := range rug.Commands {
-			if strings.EqualFold(rugCmd.Trigger, args[0]) {
-				execCommand(rug, rugCmd, session, message, args)
-				return
-			}
-		}
-	}
-}
-
-// execCommand description
-func execCommand(rug Rug, command RugCommand, session *discordgo.Session, message *discordgo.MessageCreate, args []string) {
+// execRugCommand description
+func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, message *discordgo.MessageCreate, args []string) {
 	// set command environment variables
-	js.Set("rug", rug.Object)
+	js.Set("rug", rug.object)
 	if _, err := js.Run(fmt.Sprintf(
 		`
 			var cmd = new DuderCommand();
@@ -240,7 +214,7 @@ func execCommand(rug Rug, command RugCommand, session *discordgo.Session, messag
 		log.Print("Failed to set command enviroment ", err.Error())
 	}
 
-	if _, err := js.Run(command.Exec); err != nil {
+	if _, err := js.Run(command.exec); err != nil {
 		log.Print("Failed to run command ", err.Error())
 	}
 }
