@@ -64,10 +64,12 @@ func main() {
 	}
 
 	// watch the rugs
-	if rugWatcher, err := watchRugs(Duder.config.RugPath); err != nil {
-		log.Fatal("Failed to watch rugs, ", err)
-	} else {
-		Duder.rugWatcher = rugWatcher
+	if Duder.debug {
+		if rugWatcher, err := watchRugs(Duder.config.RugPath); err != nil {
+			Duder.dprint("Failed to watch rugs, ", err)
+		} else {
+			Duder.rugWatcher = rugWatcher
+		}
 	}
 
 	// create the Discord session

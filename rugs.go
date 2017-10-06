@@ -150,7 +150,7 @@ func watchRugs(path string) (*fsnotify.Watcher, error) {
 								loadRug(file)
 							}
 						} else {
-							log.Print("Error finding rug", err)
+							Duder.dprint("Error finding rug", err)
 						}
 					}
 				}
@@ -162,15 +162,15 @@ func watchRugs(path string) (*fsnotify.Watcher, error) {
 
 	err = rugWatcher.Add(path)
 	if err != nil {
-		log.Printf("Unable to watch Rugs path '%v': %v", path, err)
+		Duder.dprintf("Unable to watch Rugs path '%v': %v", path, err)
 	}
 
-	log.Printf("Watching Rugs in path '%v'", path)
+	Duder.dprintf("Watching Rugs in path '%v'", path)
 
 	return rugWatcher, nil
 }
 
-// getRugKey
+// getRugKey description
 func getRugKey(rug Rug) string {
 	return fmt.Sprintf("%v", rug.object)
 }
