@@ -1,0 +1,70 @@
+var youtube = new DuderRug("YouTube", "Do stuff with YouTube.");
+youtube.storage = youtube.loadStorage();
+
+youtube.getAPIKey = function() {
+    if (this.storage['settings'] == undefined) {
+        return false;
+    } else if (this.storage['settings']['api_key'] == undefined) {
+        return false;
+    }
+    return this.storage['settings']['api_key'];
+}
+
+youtube.setAPIKey = function(key) {
+    if (this.storage['settings'] == undefined) {
+        this.storage['settings'] = {};
+    }
+    this.storage['settings']['api_key'] = key;
+    rug.saveStorage(this.storage);
+}
+
+youtube.addCommand("yt", function() {
+    //var key = "AIzaSyCiEhq84CiH-THHQtdl3y-jr8fZ3FWezqA";
+    var action = (cmd.args.length > 1) ? cmd.args[1].toLowerCase() : "status";
+
+    if (action == "setkey") {
+        if (cmd.args.length == 3) {
+            print(cmd.args[2]);
+            rug.setAPIKey(cmd.args[2]);
+            cmd.replyToAuthor("YouTube API key has been saved.");
+            return;
+        } else {
+            cmd.replyToAuthor("usage: `setkey YOUR_API_KEY`");
+            return;
+        }
+    }
+
+    var key = rug.getAPIKey();
+    if (key == false) {
+        cmd.replyToAuthor("no API key provided.");
+        return;
+    }
+
+    var playlistID = "PLD_JTTiRQV022JYlII4FgJSgRIc_po8s5";
+
+    var baseurl = "https://www.googleapis.com/youtube/v3/playlistItems?playlistId=" + playlistID + "&maxResults=50&part=contentDetails&key=" + key;
+    var url = baseurl;
+
+    var videos = [];
+
+    for(var i = 0; i < 10; i++) {
+        var content = HTTP.get(4, url);
+        //print(content);
+        json = JSON.parse(content);
+        for(var k in json['items']) {
+            var video = json['items'][k];
+            videos.push( video['contentDetails']['videoId'] );
+        }
+
+        if (json.nextPageToken != undefined) {
+            url = baseurl + "&pageToken=" + json['nextPageToken'];
+        } else {
+            break;
+        }
+    }
+
+    var r = Math.getRandomInRange(0, videos.length);
+
+    //print("amount of videos " + videos.length);
+    cmd.replyToChannel("https://youtu.be/" + videos[r]);
+});

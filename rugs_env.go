@@ -84,6 +84,9 @@ func createRugEnvironment() error {
 		DuderCommand.prototype.isMention = function(str) {
 			return ((str.substring(0,2) == "<@") && (str.substring(str.length-1) == ">"));
 		}
+		DuderCommand.prototype.deleteMessage = function() {
+			%s(this.channelID, this.messageID);
+		}
 
 		// Define DuderRug class
 		function DuderRug(name, description) {
@@ -118,6 +121,10 @@ func createRugEnvironment() error {
 		String.prototype.decodeHTML = function() {
 			return %s(this);
 		};
+		String.prototype.replaceAll = function(search, replacement) {
+			var target = this;
+			return target.replace(new RegExp(search, 'g'), replacement);
+		};
 
 		// HTTP
 		function HTTP() {};
@@ -137,6 +144,7 @@ func createRugEnvironment() error {
 		/* DuderCommand */
 		bindRugFunction(rugCommandReplyToChannel),
 		bindRugFunction(rugCommandReplyToAuthor),
+		bindRugFunction(rugCommandDeleteMessage),
 		/* DuderRug */
 		bindRugFunction(rugCreate),
 		bindRugFunction(rugAddCommand),
@@ -399,6 +407,15 @@ func rugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
 	} else {
 		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
 	}
+
+	return otto.Value{}
+}
+
+func rugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	messageID := call.Argument(1).String()
+
+	Duder.session.ChannelMessageDelete(channelID, messageID)
 
 	return otto.Value{}
 }

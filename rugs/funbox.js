@@ -44,7 +44,7 @@ funbox.lebowskiQuoteCallback = function( content ) {
     json = JSON.parse(content);
     quote = "```";
     for(var k in json['quote']['lines']) {
-        line = json['quote']['lines'][k];
+        var line = json['quote']['lines'][k];
         quote += line['character']['name'] + ": " + line['text'] + "\n";
     }
     quote += "```";
@@ -94,4 +94,55 @@ funbox.addCommand("quote", function() {
     }
     var content = HTTP.get(4, source.url);
     source.callback(content);
+});
+
+funbox.bigText = {
+    " ": "",
+    "a": ":regional_indicator_a:",
+    "b": ":regional_indicator_b:",
+    "c": ":regional_indicator_c:",
+    "d": ":regional_indicator_d:",
+    "e": ":regional_indicator_e:",
+    "f": ":regional_indicator_f:",
+    "g": ":regional_indicator_g:",
+    "h": ":regional_indicator_h:",
+    "i": ":regional_indicator_i:",
+    "j": ":regional_indicator_j:",
+    "k": ":regional_indicator_k:",
+    "l": ":regional_indicator_l:",
+    "m": ":regional_indicator_m:",
+    "n": ":regional_indicator_n:",
+    "o": ":regional_indicator_o:",
+    "p": ":regional_indicator_p:",
+    "q": ":regional_indicator_q:",
+    "r": ":regional_indicator_r:",
+    "s": ":regional_indicator_s:",
+    "t": ":regional_indicator_t:",
+    "u": ":regional_indicator_u:",
+    "v": ":regional_indicator_v:",
+    "w": ":regional_indicator_w:",
+    "x": ":regional_indicator_x:",
+    "y": ":regional_indicator_y:",
+    "z": ":regional_indicator_z:"
+};
+
+funbox.addCommand("big", function() {
+    if (cmd.args.length < 2) {
+        return;
+    }
+
+    cmd.args.splice(0, 1);
+    var original = cmd.args.join("");
+    var bigged = "";
+    for (var i = 0; i < original.length; i++) {
+        var char = original[i].toLowerCase();
+        if (rug.bigText[char] != undefined) {
+            bigged += rug.bigText[char];
+        } else {
+            bigged += char;
+        }
+    }
+
+    cmd.replyToChannel(bigged);
+    cmd.deleteMessage();
 });
