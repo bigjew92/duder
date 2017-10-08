@@ -14,6 +14,7 @@ youtube.setAPIKey = function(key) {
     if (this.storage['settings'] == undefined) {
         this.storage['settings'] = {};
     }
+    dprint("settings is " + this.storage['settings']);
     this.storage['settings']['api_key'] = key;
     rug.saveStorage(this.storage);
 }
