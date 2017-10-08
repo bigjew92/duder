@@ -63,11 +63,6 @@ func createRugEnvironment() error {
 		DuderUser.prototype.getPermissions = function(channelID) {
 			return %s(channelID, this.id);
 		}
-		DuderUser.prototype.modifyPermission = function(channelID, permission, add) {
-			// ensure add is boolean
-			add = (add == true);
-			return %s(channelID, this.id, permission, add);
-		}
 		DuderUser.getUsernameByID = function(channelID, userID) {
 			return %s(channelID, userID);
 		}
@@ -138,7 +133,6 @@ func createRugEnvironment() error {
 		/* DuderUser */
 		bindRugFunction(rugUserGetIsOwner),
 		bindRugFunction(rugUserGetPermissions),
-		bindRugFunction(rugUserModifyPermission),
 		bindRugFunction(rugUserGetUsernameByID),
 		/* DuderCommand */
 		bindRugFunction(rugCommandReplyToChannel),
@@ -199,6 +193,9 @@ func httpPost(call otto.FunctionCall) otto.Value {
 	timeout, _ = call.Argument(0).ToInteger()
 	url := call.Argument(1).String()
 	data := call.Argument(2).Object()
+
+	// this doesn't actually work yet
+
 	print(timeout)
 	print(url)
 
@@ -333,39 +330,6 @@ func stringDecodeHTML(call otto.FunctionCall) otto.Value {
 
 	if result, err := js.ToValue(text); err == nil {
 		return result
-	}
-
-	return otto.NullValue()
-}
-
-func rugUserModifyPermission(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-	permName := call.Argument(2).String()
-	add, _ := call.Argument(3).ToBoolean()
-
-	perm := Duder.permissions.getByName(permName)
-	if perm.Value == -1 {
-		if result, e := js.ToValue(fmt.Sprintf("invalid permission '%s'", permName)); e == nil {
-			return result
-		}
-		return otto.NullValue()
-	}
-
-	if add {
-		if err := Duder.permissions.addToUser(channelID, userID, perm.Value); err != nil {
-			if result, e := js.ToValue(err.Error()); e == nil {
-				return result
-			}
-			return otto.TrueValue()
-		}
-	} else {
-		if err := Duder.permissions.removeFromUser(channelID, userID, perm.Value); err != nil {
-			if result, e := js.ToValue(err.Error()); e == nil {
-				return result
-			}
-			return otto.TrueValue()
-		}
 	}
 
 	return otto.NullValue()

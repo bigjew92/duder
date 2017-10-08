@@ -188,20 +188,15 @@ func runCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 	Duder.dprintf("Root command '%s'", args[0])
 
 	// core commands
-	if message.Author.ID == Duder.config.OwnerID {
-		if strings.EqualFold("reload", args[0]) {
-			loadRugs(Duder.config.RugPath)
-			if len(rugLoadErrors) > 0 {
-				session.ChannelMessageSend(message.ChannelID, ":octagonal_sign: Rugs reloaded with errors.")
-			} else {
-				session.ChannelMessageSend(message.ChannelID, ":ok_hand: Rugs successfully reloaded.")
-			}
-			return
-		} else if strings.EqualFold("shutdown", args[0]) {
-			session.ChannelMessageSend(message.ChannelID, "Goodbye.")
-			Duder.shutdown()
-			return
-		}
+	if strings.EqualFold("reload", args[0]) {
+		adminReload(session, message, content, args)
+		return
+	} else if strings.EqualFold("shutdown", args[0]) {
+		adminShutdown(session, message, content, args)
+		return
+	} else if strings.EqualFold("setuser", args[0]) {
+		adminSetUser(session, message, content, args)
+		return
 	}
 
 	// check each rug to find the matching command

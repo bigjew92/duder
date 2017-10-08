@@ -80,27 +80,13 @@ func loadRugs(path string) error {
 			continue
 		}
 
-		// read the file
-		/*
-			Duder.DPrintf("Loading Rug file '%v'", f.Name())
-			rugFile = fmt.Sprintf("%v/%v", path, f.Name())
-			if buf, err := ioutil.ReadFile(rugFile); err != nil {
-				log.Print("Unable to load Rug file ", f.Name(), " reason ", err.Error())
-			} else {
-				s := string(buf)
-				if _, err := js.Run(fmt.Sprintf("__rbox = function(){ %s }; __rbox();", s)); err != nil {
-					log.Print("Error loading Rug ", err.Error())
-					rugLoadErrors = append(rugLoadErrors, err)
-				}
-			}
-		*/
 		loadRug(fmt.Sprintf("%v/%v", path, f.Name()))
 	}
 
 	return nil
 }
 
-// LoadRug description
+// loadRug description
 func loadRug(file string) {
 	// read the file
 	Duder.dprintf("Loading Rug file '%v'", file)

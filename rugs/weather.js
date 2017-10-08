@@ -68,16 +68,22 @@ weather.addCommand("weather", function() {
     }
 
     var forecast = json.query.results.channel.item.forecast;
+
     var dates = "";
     var lows = "";
     var highs = "";
     var text = "";
     var count = 0;
     for(var day in forecast) {
-        dates += rug.padRight(forecast[day].date, 20);
-        lows += rug.padRight("Low: " + forecast[day].low, 20);
-        highs += rug.padRight("High: " + forecast[day].high, 20);
-        text += rug.padRight(forecast[day].text, 20);
+        var padSize = 0;
+        padSize = Math.max(padSize, forecast[day].date.length);
+        padSize = Math.max(padSize, forecast[day].text.length);
+        padSize += 4;
+
+        dates += rug.padRight(forecast[day].date, padSize);
+        lows += rug.padRight("Low: " + forecast[day].low, padSize);
+        highs += rug.padRight("High: " + forecast[day].high, padSize);
+        text += rug.padRight(forecast[day].text, padSize);
         if (++count > 2) {
             break;
         }

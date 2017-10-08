@@ -16,7 +16,6 @@ type permissionsChannel struct {
 
 type permissions struct {
 	Channels map[string]permissionsChannel
-	Path     string
 }
 
 const (
@@ -33,13 +32,10 @@ type permissionDefinition struct {
 	Names []string
 }
 
-var permissionDefinitions map[int]permissionDefinition
-
-func init() {
-	permissionDefinitions = make(map[int]permissionDefinition)
-	permissionDefinitions[-1] = permissionDefinition{Value: -1, Names: []string{"Invalid"}}
-	permissionDefinitions[1] = permissionDefinition{Value: 1, Names: []string{"Moderator", "Mod"}}
-	permissionDefinitions[2] = permissionDefinition{Value: 2, Names: []string{"Owner"}}
+var permissionDefinitions = map[int]permissionDefinition{
+	-1: permissionDefinition{Value: -1, Names: []string{"Invalid"}},
+	1:  permissionDefinition{Value: PermissionOwner, Names: []string{"Owner"}},
+	2:  permissionDefinition{Value: PermissionModerator, Names: []string{"Moderator", "Mod"}},
 }
 
 // loadPermissions description
@@ -70,7 +66,6 @@ func loadPermissions(path string) error {
 			return errors.New(fmt.Sprint("unable to load permissions file ", path, err.Error()))
 		}
 	}
-	Duder.permissions.Path = path
 
 	return nil
 }
@@ -182,12 +177,31 @@ func (p *permissions) removeFromUser(channelID string, userID string, perm int) 
 	return nil
 }
 
+// hasPermission description
+func (p *permissions) hasPermission(channelID string, userID string, perm int) bool {
+	perms := p.getAll(channelID, userID)
+	for _, cp := range perms {
+		if cp == perm {
+			return true
+		}
+	}
+	return false
+}
+
+// isOwner description
+func (p *permissions) isOwner(channelID string, userID string) bool {
+	if userID == Duder.config.OwnerID {
+		return true
+	}
+	return p.hasPermission(channelID, userID, PermissionOwner)
+}
+
 // save description
 func (p *permissions) save() {
 	if bytes, err := json.MarshalIndent(p, "", "\t"); err != nil {
 		log.Print("unable to marshal permissions ", err.Error())
 	} else {
-		if err := ioutil.WriteFile(p.Path, bytes, 0644); err != nil {
+		if err := ioutil.WriteFile(Duder.permissionsPath, bytes, 0644); err != nil {
 			log.Print("unable to save permissions ", err.Error())
 		}
 	}
