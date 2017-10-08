@@ -162,6 +162,7 @@ func createRugEnvironment() error {
 	}
 
 	js.Set("print", func(msg string) { log.Print(msg, "\n") })
+	js.Set("dprint", func(msg string) { Duder.dprint(msg) })
 
 	return nil
 }

@@ -18,13 +18,50 @@ youtube.setAPIKey = function(key) {
     rug.saveStorage(this.storage);
 }
 
+youtube.getPlaylistID = function() {
+    if (this.storage[cmd.channelID] == undefined) {
+        return false;
+    } else if (this.storage[cmd.channelID]['playlist'] == undefined) {
+        return false;
+    }
+    return this.storage[cmd.channelID]['playlist'];
+}
+
+youtube.setPlaylistID = function(id) {
+    if (this.storage[cmd.channelID] == undefined) {
+        this.storage[cmd.channelID] = {};
+    }
+    this.storage[cmd.channelID]['playlist'] = id;
+    rug.saveStorage(this.storage);
+}
+
+youtube.getVideosCache = function() {
+    if (this.storage[cmd.channelID] == undefined) {
+        return false;
+    } else if (this.storage[cmd.channelID]['videos'] == undefined) {
+        return false;
+    } else if (this.storage[cmd.channelID]['videos']['cache'] == undefined) {
+        return false;
+    }
+    return this.storage[cmd.channelID]['videos']['cache'];
+}
+
+youtube.setVideosCache = function(cache) {
+    if (this.storage[cmd.channelID] == undefined) {
+        this.storage[cmd.channelID] = {};
+    } else if (this.storage[cmd.channelID]['videos'] == undefined) {
+        this.storage[cmd.channelID]['videos'] = {};
+    }
+    this.storage[cmd.channelID]['videos']['cache'] = cache;
+    rug.saveStorage(this.storage);
+}
+
 youtube.addCommand("yt", function() {
     //var key = "AIzaSyCiEhq84CiH-THHQtdl3y-jr8fZ3FWezqA";
-    var action = (cmd.args.length > 1) ? cmd.args[1].toLowerCase() : "status";
+    var action = (cmd.args.length > 1) ? cmd.args[1].toLowerCase() : "playlist";
 
     if (action == "setkey") {
         if (cmd.args.length == 3) {
-            print(cmd.args[2]);
             rug.setAPIKey(cmd.args[2]);
             cmd.replyToAuthor("YouTube API key has been saved.");
             return;
@@ -40,27 +77,58 @@ youtube.addCommand("yt", function() {
         return;
     }
 
-    var playlistID = "PLD_JTTiRQV022JYlII4FgJSgRIc_po8s5";
-
-    var baseurl = "https://www.googleapis.com/youtube/v3/playlistItems?playlistId=" + playlistID + "&maxResults=50&part=contentDetails&key=" + key;
-    var url = baseurl;
-
-    var videos = [];
-
-    for(var i = 0; i < 10; i++) {
-        var content = HTTP.get(4, url);
-        //print(content);
-        json = JSON.parse(content);
-        for(var k in json['items']) {
-            var video = json['items'][k];
-            videos.push( video['contentDetails']['videoId'] );
-        }
-
-        if (json.nextPageToken != undefined) {
-            url = baseurl + "&pageToken=" + json['nextPageToken'];
+    if (action == "setplaylist") {
+        if (cmd.args.length == 3) {
+            rug.setPlaylistID(cmd.args[2]);
+            cmd.replyToAuthor("playlist `" + cmd.args[2] + "` has been saved.");
+            return;
         } else {
-            break;
+            cmd.replyToAuthor("usage: `setplaylist PLAYLIST_ID`.");
+            return;
         }
+    } else if (action == "getplaylist") {
+        var playlist = rug.getPlaylistID();
+        if (playlist == false) {
+            cmd.replyToAuthor("the playlist hasn't been set.");
+            return;
+        } else {
+            cmd.replyToAuthor("the current playlist is `" + playlist + "`.");
+            return;
+        }
+    }
+
+    var videos = rug.getVideosCache();
+    if (videos == false || action == "refreshplaylist") {
+        dprint("Updating video cache");
+        videos = [];
+
+        var playlistID = rug.getPlaylistID();
+
+        var baseurl = "https://www.googleapis.com/youtube/v3/playlistItems?playlistId=" + playlistID + "&maxResults=50&part=contentDetails&key=" + key;
+        var url = baseurl;
+
+        for(var i = 0; i < 10; i++) {
+            var content = HTTP.get(4, url);
+            //print(content);
+            json = JSON.parse(content);
+            for(var k in json['items']) {
+                var video = json['items'][k];
+                videos.push( video['contentDetails']['videoId'] );
+            }
+
+            if (json.nextPageToken != undefined) {
+                url = baseurl + "&pageToken=" + json['nextPageToken'];
+            } else {
+                break;
+            }
+        }
+        rug.setVideosCache(videos);
+        videos = rug.getVideosCache();
+        if (action == "refreshplaylist") {
+            cmd.replyToAuthor("the playlist has been refreshed.");
+        }
+    } else {
+        dprint("Using video cache");
     }
 
     var r = Math.getRandomInRange(0, videos.length);
