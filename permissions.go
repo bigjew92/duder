@@ -196,6 +196,14 @@ func (p *permissions) isOwner(channelID string, userID string) bool {
 	return p.hasPermission(channelID, userID, PermissionOwner)
 }
 
+// isModerator description
+func (p *permissions) isModerator(channelID string, userID string) bool {
+	if userID == Duder.config.OwnerID {
+		return true
+	}
+	return p.hasPermission(channelID, userID, PermissionModerator)
+}
+
 // save description
 func (p *permissions) save() {
 	if bytes, err := json.MarshalIndent(p, "", "\t"); err != nil {

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/fatih/color"
@@ -108,6 +111,7 @@ func main() {
 		log.Fatal("Error opening discord connection,", err)
 	}
 
+	Duder.setStatus("with Maude")
 	log.Println("Bot is now running.")
 
 	// register bot sg.shutdown channel to receive shutdown signals.
@@ -167,6 +171,14 @@ func (duder *instance) sendMessageToChannel(channelID string, content string) {
 	duder.session.ChannelMessageSend(channelID, content)
 }
 
+// setStatus description
+func (duder *instance) setStatus(status string) error {
+	if err := duder.session.UpdateStatus(0, status); err != nil {
+		return errors.New("unable to set status")
+	}
+	return nil
+}
+
 func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
 	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.config.Prefix)) {
 		Duder.dprint("Proccessing command", message.Content)
@@ -187,15 +199,8 @@ func runCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 	}
 	Duder.dprintf("Root command '%s'", args[0])
 
-	// core commands
-	if strings.EqualFold("reload", args[0]) {
-		adminReload(session, message, content, args)
-		return
-	} else if strings.EqualFold("shutdown", args[0]) {
-		adminShutdown(session, message, content, args)
-		return
-	} else if strings.EqualFold("setuser", args[0]) {
-		adminSetUser(session, message, content, args)
+	// admin commands
+	if admin := runAdminCommand(session, message, content, args); admin == true {
 		return
 	}
 
@@ -208,4 +213,10 @@ func runCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 			}
 		}
 	}
+}
+
+func createHTTPClient(timeout int64) http.Client {
+	to := time.Duration(5 * time.Second)
+	return http.Client{
+		Timeout: to}
 }

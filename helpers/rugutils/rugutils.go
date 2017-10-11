@@ -54,7 +54,7 @@ func ConvertMentions(message *discordgo.MessageCreate) string {
 		if i > 0 {
 			buffer.WriteString(", ")
 		}
-		buffer.WriteString(fmt.Sprintf("new DuderUser(\"%s\",\"%s\")", mention.ID, mention.Username))
+		buffer.WriteString(fmt.Sprintf("new DuderUser(\"%s\",\"%s\",\"%s\")", message.ChannelID, mention.ID, mention.Username))
 	}
 	buffer.WriteString(")")
 	return buffer.String()

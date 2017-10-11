@@ -189,12 +189,13 @@ func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, mes
 			var cmd = new DuderCommand();
 			cmd.channelID = "%s";
 			cmd.messageID = "%s";
-			cmd.author = new DuderUser("%s", "%s");
+			cmd.author = new DuderUser("%s", "%s", "%s");
 			cmd.mentions = %s;
 			cmd.args = %s;
 			`,
 		message.ChannelID,
 		message.ID,
+		message.ChannelID,
 		message.Author.ID,
 		message.Author.Username,
 		rugutils.ConvertMentions(message),

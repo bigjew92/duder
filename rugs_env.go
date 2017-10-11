@@ -7,12 +7,10 @@ import (
 	"html"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"reflect"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/robertkrimen/otto"
@@ -29,6 +27,12 @@ func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 func createRugEnvironment() error {
 	// create the rug environment
 	env := fmt.Sprintf(`
+		// Define Duder class
+		function Duder() {};
+		Duder.setStatus = function(status) {
+			%s(status);
+		}
+
 		// Define DuderPermission class
 		function DuderPermission() {};
 		DuderPermission.permissions = %s;
@@ -55,10 +59,11 @@ func createRugEnvironment() error {
 		}
 
 		// Define DuderUser class
-		function DuderUser(id, username) {
+		function DuderUser(channelID, id, username) {
 			this.id = id;
 			this.username = username;
-			this.isOwner = %s(id);
+			this.isOwner = %s(channelID, id);
+			this.isModerator = %s(channelID, id);
 		}
 		DuderUser.prototype.getPermissions = function(channelID) {
 			return %s(channelID, this.id);
@@ -135,26 +140,29 @@ func createRugEnvironment() error {
 			return %s(timeout,url,data);
 		}
 	`,
+		/* Duder */
+		bindRugFunction(rugenvSetStatus),
 		/* DuderPermission */
-		getPermissionsDefinition(),
+		rugenvGetPermissionsDefinition(),
 		/* DuderUser */
-		bindRugFunction(rugUserGetIsOwner),
-		bindRugFunction(rugUserGetPermissions),
-		bindRugFunction(rugUserGetUsernameByID),
+		bindRugFunction(rugenvRugUserGetIsOwner),
+		bindRugFunction(rugenvRugUserGetIsModerator),
+		bindRugFunction(rugenvRugUserGetPermissions),
+		bindRugFunction(rugenvRugUserGetUsernameByID),
 		/* DuderCommand */
-		bindRugFunction(rugCommandReplyToChannel),
-		bindRugFunction(rugCommandReplyToAuthor),
-		bindRugFunction(rugCommandDeleteMessage),
+		bindRugFunction(rugenvRugCommandReplyToChannel),
+		bindRugFunction(rugenvRugCommandReplyToAuthor),
+		bindRugFunction(rugenvRugCommandDeleteMessage),
 		/* DuderRug */
-		bindRugFunction(rugCreate),
-		bindRugFunction(rugAddCommand),
-		bindRugFunction(rugLoadStorage),
-		bindRugFunction(rugSaveStorage),
+		bindRugFunction(rugenvRugCreate),
+		bindRugFunction(rugenvRugAddCommand),
+		bindRugFunction(rugenvRugLoadStorage),
+		bindRugFunction(rugenvRugSaveStorage),
 		/* Strings */
-		bindRugFunction(stringDecodeHTML),
+		bindRugFunction(rugenvStringDecodeHTML),
 		/* HTTP */
-		bindRugFunction(httpGet),
-		bindRugFunction(httpPost))
+		bindRugFunction(rugenvHTTPGet),
+		bindRugFunction(rugenvHTTPPost))
 
 	if _, err := js.Run(env); err != nil {
 		fmt.Print(env)
@@ -167,58 +175,20 @@ func createRugEnvironment() error {
 	return nil
 }
 
-func getHTTPClient(timeout int64) http.Client {
-	to := time.Duration(5 * time.Second)
-	return http.Client{
-		Timeout: to}
-}
-
-func httpGet(call otto.FunctionCall) otto.Value {
-	var timeout int64
-	timeout, _ = call.Argument(0).ToInteger()
-	url := call.Argument(1).String()
-
-	h := getHTTPClient(timeout)
-	resp, err := h.Get(url)
-	if err != nil {
-		return otto.FalseValue()
+func rugenvSetStatus(call otto.FunctionCall) otto.Value {
+	status := call.Argument(0).String()
+	if len(status) == 0 {
+		status = ""
 	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return otto.FalseValue()
-	}
-
-	if result, err := js.ToValue(string(body)); err == nil {
-		return result
-	}
-
-	return otto.FalseValue()
-}
-
-func httpPost(call otto.FunctionCall) otto.Value {
-	var timeout int64
-	timeout, _ = call.Argument(0).ToInteger()
-	url := call.Argument(1).String()
-	data := call.Argument(2).Object()
-
-	// this doesn't actually work yet
-
-	print(timeout)
-	print(url)
-
-	for _, k := range data.Keys() {
-		log.Print(k)
-		if v, err := data.Get(k); err == nil {
-			log.Print(v)
+	if err := Duder.session.UpdateStatus(0, status); err != nil {
+		if result, e := js.ToValue("unable to update status"); e == nil {
+			return result
 		}
 	}
-
 	return otto.TrueValue()
 }
 
-func getPermissionsDefinition() string {
+func rugenvGetPermissionsDefinition() string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("{")
@@ -235,7 +205,7 @@ func getPermissionsDefinition() string {
 	return buffer.String()
 }
 
-func rugCreate(call otto.FunctionCall) otto.Value {
+func rugenvRugCreate(call otto.FunctionCall) otto.Value {
 	obj := call.Argument(0).Object()
 	name := call.Argument(1).String()
 	description := call.Argument(2).String()
@@ -254,7 +224,7 @@ func rugCreate(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func rugAddCommand(call otto.FunctionCall) otto.Value {
+func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 
 	// validate the trigger
@@ -285,7 +255,7 @@ func rugAddCommand(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func rugLoadStorage(call otto.FunctionCall) otto.Value {
+func rugenvRugLoadStorage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
@@ -319,7 +289,7 @@ func rugLoadStorage(call otto.FunctionCall) otto.Value {
 	return otto.FalseValue()
 }
 
-func rugSaveStorage(call otto.FunctionCall) otto.Value {
+func rugenvRugSaveStorage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 	data := call.Argument(1).String()
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
@@ -333,18 +303,7 @@ func rugSaveStorage(call otto.FunctionCall) otto.Value {
 	return otto.FalseValue()
 }
 
-func stringDecodeHTML(call otto.FunctionCall) otto.Value {
-	text := call.Argument(0).String()
-	text = html.UnescapeString(text)
-
-	if result, err := js.ToValue(text); err == nil {
-		return result
-	}
-
-	return otto.NullValue()
-}
-
-func rugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
+func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	userID := call.Argument(1).String()
 
@@ -367,15 +326,29 @@ func rugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
-func rugUserGetIsOwner(call otto.FunctionCall) otto.Value {
-	userID := call.Argument(0).String()
+func rugenvRugUserGetIsOwner(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
 	if userID == Duder.config.OwnerID {
+		return otto.TrueValue()
+	} else if Duder.permissions.isOwner(channelID, userID) {
 		return otto.TrueValue()
 	}
 	return otto.FalseValue()
 }
 
-func rugUserGetPermissions(call otto.FunctionCall) otto.Value {
+func rugenvRugUserGetIsModerator(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+	if userID == Duder.config.OwnerID {
+		return otto.TrueValue()
+	} else if Duder.permissions.isModerator(channelID, userID) {
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugenvRugUserGetPermissions(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	userID := call.Argument(1).String()
 	perms := Duder.permissions.getAll(channelID, userID)
@@ -387,7 +360,7 @@ func rugUserGetPermissions(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func rugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
+func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	content := call.Argument(1).String()
 
@@ -396,7 +369,7 @@ func rugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func rugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
+func rugenvRugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	authorID := call.Argument(1).String()
 	authorUsername := call.Argument(2).String()
@@ -412,11 +385,67 @@ func rugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func rugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
+func rugenvRugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	messageID := call.Argument(1).String()
 
 	Duder.session.ChannelMessageDelete(channelID, messageID)
 
 	return otto.Value{}
+}
+
+func rugenvStringDecodeHTML(call otto.FunctionCall) otto.Value {
+	text := call.Argument(0).String()
+	text = html.UnescapeString(text)
+
+	if result, err := js.ToValue(text); err == nil {
+		return result
+	}
+
+	return otto.NullValue()
+}
+
+func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
+	var timeout int64
+	timeout, _ = call.Argument(0).ToInteger()
+	url := call.Argument(1).String()
+
+	h := createHTTPClient(timeout)
+	resp, err := h.Get(url)
+	if err != nil {
+		return otto.FalseValue()
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return otto.FalseValue()
+	}
+
+	if result, err := js.ToValue(string(body)); err == nil {
+		return result
+	}
+
+	return otto.FalseValue()
+}
+
+func rugenvHTTPPost(call otto.FunctionCall) otto.Value {
+	var timeout int64
+	timeout, _ = call.Argument(0).ToInteger()
+	url := call.Argument(1).String()
+	data := call.Argument(2).Object()
+
+	// this doesn't actually work yet
+
+	print(timeout)
+	print(url)
+
+	for _, k := range data.Keys() {
+		log.Print(k)
+		if v, err := data.Get(k); err == nil {
+			log.Print(v)
+		}
+	}
+
+	return otto.TrueValue()
 }
