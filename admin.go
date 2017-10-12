@@ -158,7 +158,7 @@ func adminAvatar(session *discordgo.Session, message *discordgo.MessageCreate, c
 	}
 
 	if _, err := os.Stat(avatarPath); os.IsNotExist(err) {
-		os.Mkdir(avatarPath, 0644)
+		os.Mkdir(avatarPath, 0777)
 	}
 
 	// args 1: action

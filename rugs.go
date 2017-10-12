@@ -65,7 +65,7 @@ func loadRugs(path string) error {
 	log.Printf("Loading Rugs from folder '%v'", path)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0644)
+		os.Mkdir(path, 0777)
 	}
 
 	// clear the rugMap
