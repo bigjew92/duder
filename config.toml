@@ -1,0 +1,13 @@
+# Duder configuration file
+
+# Discord app bot token
+bot_token = "MzY1NTg0ODY1OTY3NDcyNjQw.DLgc-w.jlcB-SXueLIfT1e7eYIkF_A7ZGg"
+
+# Discord client ID for bot owner
+owner_ID = "201116848308224002"
+
+# Path where Rugs are located
+rug_path = "rugs"
+
+# Message prefix to indicate it's a bot command
+prefix = "!dd"

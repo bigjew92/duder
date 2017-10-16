@@ -32,16 +32,20 @@ type instance struct {
 	shutdownSignal  chan os.Signal
 	permissionsPath string
 	permissions     permissions
-	rugWatcher      *fsnotify.Watcher
+	rugHotload      bool
+	rugHotloader    *fsnotify.Watcher
+	avatarPath      string
 }
 
 // Duder contains the bot instance
 var Duder = &instance{}
 
 func init() {
-	flag.StringVar(&Duder.configPath, "config", "duder.toml", "Location of the configuration file, if not found it will be generated (default duder.toml)")
-	flag.StringVar(&Duder.permissionsPath, "permissions", "duder_permissions.json", "Location of the permissions file (default duder_permissions.json)")
+	flag.StringVar(&Duder.configPath, "config", "config.toml", "Location of the configuration file, if not found it will be generated (default config.toml)")
+	flag.StringVar(&Duder.permissionsPath, "permissions", "permissions.json", "Location of the permissions file (default permissions.json)")
 	flag.BoolVar(&Duder.debug, "debug", true, "Enable debug mode")
+	flag.BoolVar(&Duder.rugHotload, "hotload", true, "Enable or disable rug hotloading")
+	flag.StringVar(&Duder.avatarPath, "avatarPath", "avatars", "Location of avatars (default avatars)")
 	flag.Parse()
 
 	log.Printf("Duder version %s", VERSION)
@@ -66,12 +70,12 @@ func main() {
 		log.Fatal("Failed to load rugs, ", err)
 	}
 
-	// watch the rugs
-	if Duder.debug {
-		if rugWatcher, err := watchRugs(Duder.config.RugPath); err != nil {
-			Duder.dprint("Failed to watch rugs, ", err)
+	// observe rugs for hotloading
+	if Duder.rugHotload {
+		if rugHotloader, err := observeRugs(Duder.config.RugPath); err != nil {
+			Duder.dprint("Failed to monitor rugs for hotload, ", err)
 		} else {
-			Duder.rugWatcher = rugWatcher
+			Duder.rugHotloader = rugHotloader
 		}
 	}
 
@@ -90,7 +94,7 @@ func main() {
 		log.Fatal("Error obtaining bot account details, ", err)
 	}
 	Duder.me = me
-	log.Print("\tBot client ID: ", Duder.me.ID)
+	log.Println("\tBot client ID: ", Duder.me.ID)
 
 	// obtain owner account details
 	log.Println("Obtaining owner account details")
@@ -145,6 +149,23 @@ func (duder *instance) dprintf(format string, v ...interface{}) {
 	}
 }
 
+// wprint calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
+func (duder *instance) wprint(v ...interface{}) {
+	if duder.debug {
+		c := color.New(color.FgHiYellow)
+		c.Println(v...)
+	}
+}
+
+// wprintf calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
+func (duder *instance) wprintf(format string, v ...interface{}) {
+	if duder.debug {
+		c := color.New(color.FgHiYellow)
+		c.Printf(format, v...)
+		fmt.Println("")
+	}
+}
+
 // shutdown sends Shutdown signal to the bot's Shutdown channel.
 func (duder *instance) shutdown() {
 	duder.shutdownSignal <- os.Interrupt
@@ -161,7 +182,9 @@ func (duder *instance) teardown() (err error) {
 		return
 	}
 
-	defer duder.rugWatcher.Close()
+	if duder.rugHotloader != nil {
+		defer duder.rugHotloader.Close()
+	}
 
 	return
 }
@@ -197,17 +220,37 @@ func runCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 	if len(args) == 0 {
 		return
 	}
-	Duder.dprintf("Root command '%s'", args[0])
+	cmd := strings.ToLower(args[0])
+	Duder.dprintf("Root command '%s'", cmd)
 
-	// admin commands
-	if admin := runAdminCommand(session, message, content, args); admin == true {
+	// hardcoded commands
+	switch cmd {
+	case "reload":
+		if Duder.config.OwnerID == message.Author.ID {
+			loadRugs(Duder.config.RugPath)
+			if len(rugLoadErrors) > 0 {
+				session.ChannelMessageSend(message.ChannelID, ":octagonal_sign: Rugs reloaded with errors.")
+			} else {
+				session.ChannelMessageSend(message.ChannelID, ":ok_hand: Rugs successfully reloaded.")
+			}
+		} else {
+			session.ChannelMessageSend(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
+		}
+		return
+	case "shutdown":
+		if Duder.config.OwnerID == message.Author.ID {
+			session.ChannelMessageSend(message.ChannelID, "Goodbye.")
+			Duder.shutdown()
+		} else {
+			session.ChannelMessageSend(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
+		}
 		return
 	}
 
 	// check each rug to find the matching command
 	for _, rug := range rugMap {
 		for _, rugCmd := range rug.commands {
-			if strings.EqualFold(rugCmd.trigger, args[0]) {
+			if rugCmd.trigger == cmd {
 				execRugCommand(rug, rugCmd, session, message, args)
 				return
 			}

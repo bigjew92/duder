@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"html"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"runtime"
@@ -25,132 +28,31 @@ func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 }
 
 func createRugEnvironment() error {
+	data, err := ioutil.ReadFile("rugs_env.js")
+	if err != nil {
+		return errors.New("unable to read rugs_env.js")
+	}
+	content := strings.Replace(string(data), "__BIND__", "%s", -1)
 	// create the rug environment
-	env := fmt.Sprintf(`
-		// Define Duder class
-		function Duder() {};
-		Duder.setStatus = function(status) {
-			%s(status);
-		}
-
-		// Define DuderPermission class
-		function DuderPermission() {};
-		DuderPermission.permissions = %s;
-		DuderPermission.getName = function(val) {
-			val = val.toString();
-			for(var name in DuderPermission.permissions) {
-				if (DuderPermission.permissions[name] == val) {
-					return name;
-				}
-			}
-
-			return "invalid";
-		}
-		DuderPermission.getNames = function(vals) {
-			names = "";
-			for(v in vals) {
-				if (names.length > 0) {
-					names += ", ";
-				}
-				names += DuderPermission.getName(vals[v]);
-			}
-
-			return names.length > 0 ? names : "none";
-		}
-
-		// Define DuderUser class
-		function DuderUser(channelID, id, username) {
-			this.id = id;
-			this.username = username;
-			this.isOwner = %s(channelID, id);
-			this.isModerator = %s(channelID, id);
-		}
-		DuderUser.prototype.getPermissions = function(channelID) {
-			return %s(channelID, this.id);
-		}
-		DuderUser.getUsernameByID = function(channelID, userID) {
-			return %s(channelID, userID);
-		}
-
-		// Define DuderCommand class
-		function DuderCommand() {
-			this.mentions = new Array();
-		}
-
-		DuderCommand.prototype.replyToChannel = function(content) {
-			%s(this.channelID, content);
-		}
-
-		DuderCommand.prototype.replyToAuthor = function(content, mention) {
-			// ensure mention is boolean
-			mention = (mention == true);
-			%s(this.channelID, this.author.id, this.author.username, content, mention);
-		}
-		DuderCommand.prototype.isMention = function(str) {
-			return ((str.substring(0,2) == "<@") && (str.substring(str.length-1) == ">"));
-		}
-		DuderCommand.prototype.deleteMessage = function() {
-			%s(this.channelID, this.messageID);
-		}
-
-		// Define DuderRug class
-		function DuderRug(name, description) {
-			%s(this, name, description);
-		}
-
-		DuderRug.prototype.addCommand = function(trigger, exec) {
-			%s(this, trigger, exec);
-		}
-
-		DuderRug.prototype.loadStorage = function() {
-			data = %s(this);
-			return JSON.parse(data);
-		}
-
-		DuderRug.prototype.saveStorage = function(json) {
-			data = JSON.stringify(json, null, "\t");
-			return %s(this, data);
-		}
-
-		// Math
-		Math.getRandomInRange = function(min,max) {
-			min = Math.ceil(min);
-			max = Math.floor(max);
-			return Math.floor(Math.random() * (max - min + 1)) + min;
-		}
-		Math.clamp = function(val, min, max) {
-			return Math.max(min, Math.min(val, max));
-		}
-
-		// String
-		String.prototype.decodeHTML = function() {
-			return %s(this);
-		};
-		String.prototype.replaceAll = function(search, replacement) {
-			var target = this;
-			return target.replace(new RegExp(search, 'g'), replacement);
-		};
-
-		// HTTP
-		function HTTP() {};
-		HTTP.get = function(timeout,url) {
-			return %s(timeout,url);
-		}
-		HTTP.post = function(timeout,url,data) {
-			return %s(timeout,url,data);
-		}
-	`,
+	env := fmt.Sprintf(content,
 		/* Duder */
 		bindRugFunction(rugenvSetStatus),
+		bindRugFunction(rugenvSetAvatar),
+		bindRugFunction(rugenvSaveAvatar),
+		bindRugFunction(rugenvGetAvatars),
+		bindRugFunction(rugenvUseAvatar),
+		bindRugFunction(rugenvStartTyping),
 		/* DuderPermission */
 		rugenvGetPermissionsDefinition(),
 		/* DuderUser */
 		bindRugFunction(rugenvRugUserGetIsOwner),
 		bindRugFunction(rugenvRugUserGetIsModerator),
 		bindRugFunction(rugenvRugUserGetPermissions),
+		bindRugFunction(rugenvRugUserSetPermissions),
 		bindRugFunction(rugenvRugUserGetUsernameByID),
 		/* DuderCommand */
 		bindRugFunction(rugenvRugCommandReplyToChannel),
+		bindRugFunction(rugenvRugCommandReplyToChannelEmbed),
 		bindRugFunction(rugenvRugCommandReplyToAuthor),
 		bindRugFunction(rugenvRugCommandDeleteMessage),
 		/* DuderRug */
@@ -158,36 +60,174 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvRugAddCommand),
 		bindRugFunction(rugenvRugLoadStorage),
 		bindRugFunction(rugenvRugSaveStorage),
-		/* Strings */
+		/* String */
 		bindRugFunction(rugenvStringDecodeHTML),
 		/* HTTP */
 		bindRugFunction(rugenvHTTPGet),
-		bindRugFunction(rugenvHTTPPost))
+		bindRugFunction(rugenvHTTPPost),
+		bindRugFunction(rugenvHTTPDetectContentType),
+		bindRugFunction(rugenvHTTPParseURL),
+		/* Base64 */
+		bindRugFunction(rugenvBase64EncodeToString))
 
 	if _, err := js.Run(env); err != nil {
 		fmt.Print(env)
 		return errors.New(fmt.Sprint("error creating rug environment: ", err.Error()))
 	}
 
-	js.Set("print", func(msg string) { log.Print(msg, "\n") })
-	js.Set("dprint", func(msg string) { Duder.dprint(msg) })
+	js.Set("print", func(msg string) { log.Println("[JS]", msg) })
+	js.Set("dprint", func(msg string) { Duder.dprint("[JS]", msg) })
+	js.Set("wprint", func(msg string) { Duder.wprint("[JS]", msg) })
 
 	return nil
 }
 
+/* Duder */
 func rugenvSetStatus(call otto.FunctionCall) otto.Value {
 	status := call.Argument(0).String()
 	if len(status) == 0 {
 		status = ""
 	}
 	if err := Duder.session.UpdateStatus(0, status); err != nil {
-		if result, e := js.ToValue("unable to update status"); e == nil {
+		if result, e := js.ToValue(err.Error()); e == nil {
 			return result
 		}
 	}
 	return otto.TrueValue()
 }
 
+func rugenvSetAvatar(call otto.FunctionCall) otto.Value {
+	avatar := call.Argument(0).String()
+	if _, err := Duder.session.UserUpdate("", "", "", avatar, ""); err != nil {
+		return otto.FalseValue()
+	}
+	return otto.TrueValue()
+}
+
+func rugenvSaveAvatar(call otto.FunctionCall) otto.Value {
+	filename := call.Argument(0).String()
+	if len(filename) == 0 {
+		if result, err := js.ToValue("invalid filename."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	}
+	baseURL := Duder.me.AvatarURL("256")
+	print("base " + baseURL + "\n")
+	urlNoSize := baseURL[0 : len(baseURL)-9]
+	print("nosize " + urlNoSize + "\n")
+	parts := strings.Split(urlNoSize, ".")
+	ext := "." + parts[len(parts)-1]
+	print("ext " + ext + "\n")
+
+	if !strings.HasSuffix(filename, ext) {
+		filename = fmt.Sprintf("%s%s", filename, ext)
+	}
+
+	h := createHTTPClient(5)
+	resp, err := h.Get(baseURL)
+	if err != nil {
+		if result, err := js.ToValue("failed to download current avatar."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	}
+	defer resp.Body.Close()
+
+	if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
+		os.Mkdir(Duder.avatarPath, 0777)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		if result, err := js.ToValue("unable to read downloaded file."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	}
+	if err = ioutil.WriteFile(fmt.Sprintf("%s/%s", Duder.avatarPath, filename), data, 0644); err != nil {
+		if result, err := js.ToValue("unable to save downloaded file."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	}
+
+	return otto.TrueValue()
+}
+
+func rugenvGetAvatars(call otto.FunctionCall) otto.Value {
+	if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
+		os.Mkdir(Duder.avatarPath, 0777)
+	}
+
+	avatars := []string{}
+	files, _ := ioutil.ReadDir(Duder.avatarPath)
+	for _, f := range files {
+		// ignore directories and non-image files
+		if f.IsDir() || (!strings.HasSuffix(f.Name(), ".png") && !strings.HasSuffix(f.Name(), ".jpg") && !strings.HasSuffix(f.Name(), ".jpeg")) {
+			continue
+		}
+		avatars = append(avatars, f.Name())
+	}
+
+	if result, err := js.ToValue(avatars); err == nil {
+		return result
+	}
+
+	return otto.FalseValue()
+}
+
+func rugenvUseAvatar(call otto.FunctionCall) otto.Value {
+	filename := call.Argument(0).String()
+	if len(filename) == 0 {
+		if result, err := js.ToValue("invalid filename."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	} else if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
+		if result, err := js.ToValue("invalid filename."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	}
+
+	filePath := fmt.Sprintf("%s/%s", Duder.avatarPath, filename)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		if result, err := js.ToValue("invalid filename."); err == nil {
+			return result
+		}
+		return otto.FalseValue()
+	}
+
+	if bytes, err := ioutil.ReadFile(filePath); err == nil {
+		base64 := base64.StdEncoding.EncodeToString(bytes)
+		avatar := fmt.Sprintf("data:%s;base64,%s", http.DetectContentType(bytes), base64)
+		_, err = Duder.session.UserUpdate("", "", "", avatar, "")
+		if err != nil {
+			if result, err := js.ToValue("unable to update avatar."); err == nil {
+				return result
+			}
+			return otto.FalseValue()
+		}
+		return otto.TrueValue()
+	}
+
+	return otto.FalseValue()
+}
+
+func rugenvStartTyping(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	if len(channelID) == 0 {
+		return otto.FalseValue()
+	}
+	if err := Duder.session.ChannelTyping(channelID); err != nil {
+		Duder.dprint("unable to start typing in channel ", channelID)
+		return otto.FalseValue()
+	}
+	return otto.TrueValue()
+}
+
+/* DuderPermission */
 func rugenvGetPermissionsDefinition() string {
 	var buffer bytes.Buffer
 
@@ -205,6 +245,140 @@ func rugenvGetPermissionsDefinition() string {
 	return buffer.String()
 }
 
+/* DuderUser */
+func rugenvRugUserGetIsOwner(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+	if userID == Duder.config.OwnerID {
+		return otto.TrueValue()
+	} else if Duder.permissions.isOwner(channelID, userID) {
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugenvRugUserGetIsModerator(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+	if userID == Duder.config.OwnerID {
+		return otto.TrueValue()
+	} else if Duder.permissions.isModerator(channelID, userID) {
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugenvRugUserGetPermissions(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+	perms := Duder.permissions.getAll(channelID, userID)
+
+	if result, err := js.Run(rugutils.ConvertUserPermission(perms)); err == nil {
+		return result
+	}
+
+	return otto.Value{}
+}
+
+func rugenvRugUserSetPermissions(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+	permName := call.Argument(2).String()
+	add, _ := call.Argument(3).ToBoolean()
+
+	perm := Duder.permissions.getByName(permName)
+	if perm.Value == -1 {
+		if result, e := js.ToValue(fmt.Sprintf("invalid permission '%s'", permName)); e == nil {
+			return result
+		}
+		return otto.NullValue()
+	}
+
+	if add {
+		if err := Duder.permissions.addToUser(channelID, userID, perm.Value); err != nil {
+			if result, e := js.ToValue(err.Error()); e == nil {
+				return result
+			}
+			return otto.TrueValue()
+		}
+	} else {
+		if err := Duder.permissions.removeFromUser(channelID, userID, perm.Value); err != nil {
+			if result, e := js.ToValue(err.Error()); e == nil {
+				return result
+			}
+			return otto.TrueValue()
+		}
+	}
+
+	return otto.NullValue()
+}
+
+func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+
+	username := "Unknown"
+
+	if channel, err := Duder.session.Channel(channelID); err == nil {
+		if guild, err := Duder.session.Guild(channel.GuildID); err == nil {
+			for _, member := range guild.Members {
+				if member.User.ID == userID {
+					username = member.User.Username
+					break
+				}
+			}
+		}
+	}
+
+	if result, err := js.ToValue(username); err == nil {
+		return result
+	}
+	return otto.NullValue()
+}
+
+/* DuderCommand */
+func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	content := call.Argument(1).String()
+
+	Duder.session.ChannelMessageSend(channelID, content)
+
+	return otto.TrueValue()
+}
+
+func rugenvRugCommandReplyToChannelEmbed(call otto.FunctionCall) otto.Value {
+	//e := discordgo.MessageEmbed
+	//e.
+	//Duder.session.ChannelMessageSendEmbed()
+	return otto.TrueValue()
+}
+
+func rugenvRugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	authorID := call.Argument(1).String()
+	authorUsername := call.Argument(2).String()
+	content := call.Argument(3).String()
+	mention, _ := call.Argument(4).ToBoolean()
+
+	if mention {
+		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("<@%s> %s", authorID, content))
+	} else {
+		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
+	}
+
+	return otto.TrueValue()
+}
+
+func rugenvRugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
+	channelID := call.Argument(0).String()
+	messageID := call.Argument(1).String()
+
+	Duder.session.ChannelMessageDelete(channelID, messageID)
+
+	return otto.Value{}
+}
+
+/* DuderRug */
 func rugenvRugCreate(call otto.FunctionCall) otto.Value {
 	obj := call.Argument(0).Object()
 	name := call.Argument(1).String()
@@ -231,28 +405,29 @@ func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 	trigger := strings.TrimSpace(call.Argument(1).String())
 	if len(trigger) == 0 {
 		Duder.dprintf("Unable to add command to Rug '%v', trigger is empty", rugObj)
-		return otto.Value{}
+		return otto.FalseValue()
 	}
 
 	// validate the execution code
 	exec := strings.TrimSpace(call.Argument(2).String())
 	if len(exec) == 0 {
 		Duder.dprintf("Unable to add command '%v' to Rug '%v', trigger is empty", trigger, rugObj)
-		return otto.Value{}
+		return otto.FalseValue()
 	}
 
 	// add to parent rug
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
 		rugCmd := rugCommand{}
 		rugCmd.trigger = trigger
-		rugCmd.exec = fmt.Sprintf("__execCmd = %s; __execCmd()", exec)
+		//rugCmd.exec = fmt.Sprintf("__execCmd = %s; __execCmd()", exec)
+		rugCmd.exec = fmt.Sprintf("(%s)()", exec)
 		rug.commands[trigger] = rugCmd
 		Duder.dprintf("Added command '%v' to Rug '%v'", trigger, rug.name)
 	} else {
 		Duder.dprintf("Unable to add command to Rug '%v'", rugObj)
 	}
 
-	return otto.Value{}
+	return otto.TrueValue()
 }
 
 func rugenvRugLoadStorage(call otto.FunctionCall) otto.Value {
@@ -303,97 +478,7 @@ func rugenvRugSaveStorage(call otto.FunctionCall) otto.Value {
 	return otto.FalseValue()
 }
 
-func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-
-	username := "Unknown"
-
-	if channel, err := Duder.session.Channel(channelID); err == nil {
-		if guild, err := Duder.session.Guild(channel.GuildID); err == nil {
-			for _, member := range guild.Members {
-				if member.User.ID == userID {
-					username = member.User.Username
-					break
-				}
-			}
-		}
-	}
-
-	if result, err := js.ToValue(username); err == nil {
-		return result
-	}
-	return otto.NullValue()
-}
-
-func rugenvRugUserGetIsOwner(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-	if userID == Duder.config.OwnerID {
-		return otto.TrueValue()
-	} else if Duder.permissions.isOwner(channelID, userID) {
-		return otto.TrueValue()
-	}
-	return otto.FalseValue()
-}
-
-func rugenvRugUserGetIsModerator(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-	if userID == Duder.config.OwnerID {
-		return otto.TrueValue()
-	} else if Duder.permissions.isModerator(channelID, userID) {
-		return otto.TrueValue()
-	}
-	return otto.FalseValue()
-}
-
-func rugenvRugUserGetPermissions(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-	perms := Duder.permissions.getAll(channelID, userID)
-
-	if result, err := js.Run(rugutils.ConvertUserPermission(perms)); err == nil {
-		return result
-	}
-
-	return otto.Value{}
-}
-
-func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	content := call.Argument(1).String()
-
-	Duder.session.ChannelMessageSend(channelID, content)
-
-	return otto.Value{}
-}
-
-func rugenvRugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	authorID := call.Argument(1).String()
-	authorUsername := call.Argument(2).String()
-	content := call.Argument(3).String()
-	mention, _ := call.Argument(4).ToBoolean()
-
-	if mention {
-		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("<@%s> %s", authorID, content))
-	} else {
-		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
-	}
-
-	return otto.Value{}
-}
-
-func rugenvRugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
-	channelID := call.Argument(0).String()
-	messageID := call.Argument(1).String()
-
-	Duder.session.ChannelMessageDelete(channelID, messageID)
-
-	return otto.Value{}
-}
-
+/* String */
 func rugenvStringDecodeHTML(call otto.FunctionCall) otto.Value {
 	text := call.Argument(0).String()
 	text = html.UnescapeString(text)
@@ -405,10 +490,12 @@ func rugenvStringDecodeHTML(call otto.FunctionCall) otto.Value {
 	return otto.NullValue()
 }
 
+/* HTTP */
 func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	var timeout int64
 	timeout, _ = call.Argument(0).ToInteger()
 	url := call.Argument(1).String()
+	stringResult, _ := call.Argument(2).ToBoolean()
 
 	h := createHTTPClient(timeout)
 	resp, err := h.Get(url)
@@ -422,8 +509,16 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 		return otto.FalseValue()
 	}
 
-	if result, err := js.ToValue(string(body)); err == nil {
-		return result
+	if stringResult {
+		if result, err := js.ToValue(string(body)); err == nil {
+			Duder.dprint("http.Get returning string")
+			return result
+		}
+	} else {
+		if result, err := js.ToValue(body); err == nil {
+			Duder.dprint("http.Get returning byte array")
+			return result
+		}
 	}
 
 	return otto.FalseValue()
@@ -448,4 +543,43 @@ func rugenvHTTPPost(call otto.FunctionCall) otto.Value {
 	}
 
 	return otto.TrueValue()
+}
+
+func rugenvHTTPDetectContentType(call otto.FunctionCall) otto.Value {
+	var data []byte
+	export, _ := call.Argument(0).Export()
+	{
+		data, _ = export.([]byte)
+	}
+
+	contentType := http.DetectContentType(data)
+	if result, err := js.ToValue(contentType); err == nil {
+		return result
+	}
+	return otto.FalseValue()
+}
+
+func rugenvHTTPParseURL(call otto.FunctionCall) otto.Value {
+	urlString := call.Argument(0).String()
+	if u, err := url.Parse(urlString); err == nil {
+		if result, err := js.ToValue(u.String()); err == nil {
+			return result
+		}
+	}
+	return otto.FalseValue()
+}
+
+/* Base64 */
+func rugenvBase64EncodeToString(call otto.FunctionCall) otto.Value {
+	var data []byte
+	export, _ := call.Argument(0).Export()
+	{
+		data, _ = export.([]byte)
+	}
+
+	str := base64.StdEncoding.EncodeToString(data)
+	if result, err := js.ToValue(str); err == nil {
+		return result
+	}
+	return otto.FalseValue()
 }

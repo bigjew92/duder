@@ -95,15 +95,16 @@ func loadRug(file string) {
 		log.Print("Unable to load Rug file ", file, " reason ", err.Error())
 	} else {
 		s := string(buf)
-		if _, err := js.Run(fmt.Sprintf("__rbox = function(){ %s }; __rbox();", s)); err != nil {
+		//if _, err := js.Run(fmt.Sprintf("__rbox = function(){ %s }; __rbox();", s)); err != nil {
+		if _, err := js.Run(fmt.Sprintf("(function(){%s})()", s)); err != nil {
 			log.Print("Error loading Rug ", err.Error())
 			rugLoadErrors = append(rugLoadErrors, err)
 		}
 	}
 }
 
-// watchRugs description
-func watchRugs(path string) (*fsnotify.Watcher, error) {
+// observeRugs description
+func observeRugs(path string) (*fsnotify.Watcher, error) {
 	// validate the rug path
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
@@ -180,6 +181,11 @@ func getRugByFile(file string) (Rug, error) {
 	return Rug{}, errors.New("Unable to find rug")
 }
 
+// getRugStorageFile description
+func getRugStorageFile(rug Rug) string {
+	return strings.TrimSuffix(rug.file, filepath.Ext(rug.file)) + ".json"
+}
+
 // execRugCommand description
 func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, message *discordgo.MessageCreate, args []string) {
 	// set command environment variables
@@ -203,7 +209,37 @@ func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, mes
 		log.Print("Failed to set command enviroment ", err.Error())
 	}
 
+	//log.Print(command.exec)
+
 	if _, err := js.Run(command.exec); err != nil {
 		log.Print("Failed to run command ", err.Error())
+	}
+	//if _, err := js.Run(fmt.Sprintf("(function(){%s})()", s)); err != nil {
+	if result, err := js.Run(`
+		(function() {
+			var __leaks__ = [];
+			for (var __n__ in this) {
+				if (typeof this[__n__] == "function") {
+					continue;
+				}
+				if (__n__ != "console" && __n__ != "rug" && __n__ != "cmd" && __n__ != "__n__" && __n__ != "__leaks__") {
+					__leaks__.push(__n__);
+					delete this[__n__];
+				}
+			}
+			return __leaks__;
+		})()`); err != nil {
+		log.Print("Failed to run command ", err.Error())
+	} else {
+		var leaks []string
+		export, _ := result.Export()
+		{
+			leaks, _ = export.([]string)
+		}
+		if len(leaks) > 0 {
+			for _, leak := range leaks {
+				Duder.wprint(rug.file, "leaked", leak)
+			}
+		}
 	}
 }
