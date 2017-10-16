@@ -58,7 +58,6 @@ funbox.lebowskiQuoteCallback = function(content) {
 };
 
 funbox.bashQuoteCallback = function(content) {
-	print(content);
 	var id = content.match(
 		'(?s)title="Permanent link to this quote."><b>.+?</b></a>'
 	);
