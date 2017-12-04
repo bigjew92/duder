@@ -102,13 +102,6 @@ func rugenvSetAvatar(call otto.FunctionCall) otto.Value {
 		return otto.FalseValue()
 	}
 
-	me, err := Duder.session.User("@me")
-	if err != nil {
-		log.Fatal("Error obtaining bot account details, ", err)
-	} else {
-		Duder.me = me
-	}
-
 	return otto.TrueValue()
 }
 
