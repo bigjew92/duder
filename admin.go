@@ -13,7 +13,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// test3
+// test4
 
 // replyToAuthor description
 func replyToAuthor(session *discordgo.Session, message *discordgo.MessageCreate, content string, mention bool) {
