@@ -112,7 +112,17 @@ funbox.addCommand("quote", function() {
 });
 
 funbox.bigText = {
-	" ": "",
+	" ": " ",
+	0: ":zero:",
+	1: ":one:",
+	2: ":two:",
+	3: ":three:",
+	4: ":four:",
+	5: ":five:",
+	6: ":six:",
+	7: ":seven:",
+	8: ":eight:",
+	9: ":nine:",
 	a: ":regional_indicator_a:",
 	b: ":regional_indicator_b:",
 	c: ":regional_indicator_c:",
@@ -153,8 +163,6 @@ funbox.addCommand("big", function() {
 		var char = original[i].toLowerCase();
 		if (rug.bigText[char] != undefined) {
 			bigged += rug.bigText[char];
-		} else {
-			bigged += char;
 		}
 	}
 
