@@ -141,6 +141,7 @@ funbox.bigText = {
 	z: ":regional_indicator_z:"
 };
 
+// big
 funbox.addCommand("big", function() {
 	if (cmd.args.length < 2) {
 		return;
