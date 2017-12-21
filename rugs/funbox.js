@@ -46,37 +46,6 @@ funbox.addCommand("8ball", function() {
 	);
 });
 
-funbox.lebowskiQuoteCallback = function(content) {
-	var json = JSON.parse(content);
-	var quote = "```";
-	for (var k in json.quote.lines) {
-		if (isNumeric(k)) {
-			var line = json.quote.lines[k];
-			quote += line.character.name + ": " + line.text + "\n";
-		}
-	}
-	quote += "```";
-	cmd.replyToChannel(quote);
-};
-
-funbox.bashQuoteCallback = function(content) {
-	var id = content.match(
-		'(?s)title="Permanent link to this quote."><b>.+?</b></a>'
-	);
-	id = id[0].substring(42);
-	id = id.substring(0, id.length - 8);
-	var link = "<http://bash.org/?quote=" + id + ">";
-
-	var quote = content.match('(?s)<p class="qt">.+?</p>');
-	quote = quote[0].substring(14);
-	quote = quote.substring(0, quote.length - 4);
-	quote = unescape(quote);
-	quote = quote.decodeHTML();
-	quote = quote.replace(new RegExp("<br />", "g"), "");
-
-	cmd.replyToChannel(link + "\n```" + quote + "```");
-};
-
 funbox.addCommand("lebowski", function() {
 	var content;
 	var result;
