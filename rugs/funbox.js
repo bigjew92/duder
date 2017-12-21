@@ -47,11 +47,13 @@ funbox.addCommand("8ball", function() {
 });
 
 funbox.lebowskiQuoteCallback = function(content) {
-	json = JSON.parse(content);
-	quote = "```";
+	var json = JSON.parse(content);
+	var quote = "```";
 	for (var k in json.quote.lines) {
-		var line = json.quote.lines[k];
-		quote += line.character.name + ": " + line.text + "\n";
+		if (isNumeric(k)) {
+			var line = json.quote.lines[k];
+			quote += line.character.name + ": " + line.text + "\n";
+		}
 	}
 	quote += "```";
 	cmd.replyToChannel(quote);
@@ -75,40 +77,52 @@ funbox.bashQuoteCallback = function(content) {
 	cmd.replyToChannel(link + "\n```" + quote + "```");
 };
 
-funbox.quoteSources = [
-	{
-		name: "lebowski",
-		url: "http://lebowski.me/api/quotes/random",
-		callback: funbox.lebowskiQuoteCallback
-	},
-	{
-		name: "bash",
-		url: "http://bash.org/?random1",
-		callback: funbox.bashQuoteCallback
-	}
-];
-
-funbox.addCommand("quote", function() {
-	//var source = (cmd.args.length > 1) ? cmd.args[1].toLowerCase() : "status";
-	var source = null;
+funbox.addCommand("lebowski", function() {
+	var content;
+	var result;
+	var json;
 	if (cmd.args.length > 1) {
-		var name = cmd.args[1].toLowerCase();
-		for (var i = 0; i < rug.quoteSources.length; i++) {
-			if (rug.quoteSources[i].name == name) {
-				source = rug.quoteSources[i];
-				break;
-			}
-		}
-		if (source == null) {
-			cmd.replyToAuthor(cmd.args[1] + " isn't a quote source.");
+		content = HTTP.get(4, "http://lebowski.me/api/quotes/search?term=" + cmd.args[1]);
+		json = JSON.parse(content);
+		if (json.results.length == 0) {
+			cmd.replyToChannel("¯\_(ツ)_/¯");
 			return;
 		}
+		result = json.results[0];
 	} else {
-		var r = Math.getRandomInRange(0, rug.quoteSources.length - 1);
-		source = rug.quoteSources[r];
+		content = HTTP.get(4, "http://lebowski.me/api/quotes/random");
+		json = JSON.parse(content);
+		result = json.quote;
 	}
-	var content = HTTP.get(4, source.url);
-	source.callback(content);
+
+	var quote = "```";
+	for (var k in result.lines) {
+		if (isNumeric(k)) {
+			var line = result.lines[k];
+			quote += line.character.name + ": " + line.text + "\n";
+		}
+	}
+	quote += "```";
+	cmd.replyToChannel(quote);
+});
+
+funbox.addCommand("bash", function() {
+	var content = HTTP.get(4, "http://bash.org/?random1");
+	var id = content.match(
+		'(?s)title="Permanent link to this quote."><b>.+?</b></a>'
+	);
+	id = id[0].substring(42);
+	id = id.substring(0, id.length - 8);
+	var link = "<http://bash.org/?quote=" + id + ">";
+
+	var quote = content.match('(?s)<p class="qt">.+?</p>');
+	quote = quote[0].substring(14);
+	quote = quote.substring(0, quote.length - 4);
+	quote = unescape(quote);
+	quote = quote.decodeHTML();
+	quote = quote.replace(new RegExp("<br />", "g"), "");
+
+	cmd.replyToChannel(link + "\n```" + quote + "```");
 });
 
 funbox.bigText = {
@@ -123,6 +137,8 @@ funbox.bigText = {
 	7: ":seven:",
 	8: ":eight:",
 	9: ":nine:",
+	"!": ":exclamation:",
+	"?": ":question:",
 	a: ":regional_indicator_a:",
 	b: ":regional_indicator_b:",
 	c: ":regional_indicator_c:",

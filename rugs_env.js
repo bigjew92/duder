@@ -138,6 +138,17 @@ String.prototype.format = function() {
 		return typeof args[number] != "undefined" ? args[number] : match;
 	});
 };
+String.prototype.matchAll = function(regexp) {
+	var matches = [];
+	this.replace(regexp, function() {
+		var arr = [].slice.call(arguments, 0);
+		var extras = arr.splice(-2);
+		arr.index = extras[0];
+		arr.input = extras[1];
+		matches.push(arr);
+	});
+	return matches.length ? matches : null;
+};
 
 // Array
 Array.prototype.contains = function(elem) {
@@ -169,3 +180,8 @@ function Base64() {}
 Base64.encodeToString = function(bytes) {
 	return __BIND__(bytes);
 };
+
+// Misc
+function isNumeric(n) {
+	return !isNaN(parseFloat(n)) && isFinite(n);
+}
