@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -15,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/robertkrimen/otto"
 )
@@ -348,9 +350,17 @@ func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 }
 
 func rugenvRugCommandReplyToChannelEmbed(call otto.FunctionCall) otto.Value {
-	//e := discordgo.MessageEmbed
-	//e.
-	//Duder.session.ChannelMessageSendEmbed()
+	// https://godoc.org/github.com/bwmarrin/discordgo#MessageEmbed
+	channelID := call.Argument(0).String()
+	content := call.Argument(1).String()
+
+	embed := new(discordgo.MessageEmbed)
+	if err := json.Unmarshal([]byte(content), &embed); err != nil {
+		Duder.dprint("failed to create embed", err.Error())
+	} else {
+		Duder.session.ChannelMessageSendEmbed(channelID, embed)
+	}
+
 	return otto.TrueValue()
 }
 

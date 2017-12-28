@@ -189,4 +189,5 @@ admin.addCommand("avatar", function() {
 	}
 });
 
-admin.addCommand("test", function() {});
+admin.addCommand("test", function() {
+});

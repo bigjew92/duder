@@ -41,6 +41,14 @@ weather.padRight = function(text, len) {
 	return text + p;
 };
 
+weather.weatherIcons = {
+	"Sunny": ":sunny:",
+	"Partly Cloudy": ":white_sun_cloud:",
+	"Scattered Showers": ":white_sun_rain_cloud:",
+	"Showers": ":cloud_rain:",
+	"Rain": ":cloud_rain:"
+};
+
 weather.addCommand("weather", function() {
 	var citystate = "";
 	
@@ -68,39 +76,41 @@ weather.addCommand("weather", function() {
 		"&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys";
 
 	var content = HTTP.get(4, url);
-	json = JSON.parse(content);
+	var json = JSON.parse(content);
 	if (json.query.count == 0) {
 		cmd.replyToAuthor("no weather results found for that location.");
 		return;
 	}
 	var forecast = json.query.results.channel.item.forecast;
+	var title = json.query.results.channel.title.substring(17);
 
-	var dates = "";
-	var lows = "";
-	var highs = "";
-	var text = "";
+	var j = '{' +
+			'"color": 3447003,' +
+			'"title": "3 Day Forecast",' + 
+			'"description": "{0}",'.format(title) + 
+			'"fields":' +
+			'[';
+
 	var count = 0;
 	for (var day in forecast) {
-		var padSize = 0;
-		padSize = Math.max(padSize, forecast[day].date.length);
-		padSize = Math.max(padSize, forecast[day].text.length);
-		padSize += 4;
-
-		dates += rug.padRight(forecast[day].date, padSize);
-		lows += rug.padRight("Low: " + forecast[day].low, padSize);
-		highs += rug.padRight("High: " + forecast[day].high, padSize);
-		text += rug.padRight(forecast[day].text, padSize);
+		var icon = forecast[day].text;
+		if (rug.weatherIcons[icon] != undefined) {
+			icon = rug.weatherIcons[icon];
+		}
+		j += '{' +
+			'"name": "{0} {1}",'.format(icon, forecast[day].date) +
+			'"value": "Low: {0} High: {1}"'.format(forecast[day].low, forecast[day].high) +
+		'}';
 		if (++count > 2) {
 			break;
+		} else {
+			j += ',';
 		}
 	}
+	j += ']';
 
-	var title = json.query.results.channel.title;
-	title = title.substring(17);
-	var msg = ":white_sun_cloud: " + title + "\n";
-	msg +=
-		"`" + dates + "|\n" + lows + "|\n" + highs + "|\n" + text + "|" + "`";
+	j += '}';
 
 	rug.setUserLocation(cmd.author.id, citystate);
-	cmd.replyToChannel(msg);
+	cmd.replyToChannelEmbed(j);	
 });
