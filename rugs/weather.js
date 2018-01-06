@@ -46,7 +46,10 @@ weather.weatherIcons = {
 	"Partly Cloudy": ":white_sun_cloud:",
 	"Scattered Showers": ":white_sun_rain_cloud:",
 	"Showers": ":cloud_rain:",
-	"Rain": ":cloud_rain:"
+	"Rain": ":cloud_rain:",
+	"Mostly Cloudy": ":cloud:",
+	"Mostly Sunny": ":white_sun_cloud:",
+	"Breezy": ":wind_blowing_face:"
 };
 
 weather.addCommand("weather", function() {
@@ -93,13 +96,16 @@ weather.addCommand("weather", function() {
 
 	var count = 0;
 	for (var day in forecast) {
+		var date = forecast[day].date.substring(0,forecast[day].date.length - 5);
 		var icon = forecast[day].text;
 		if (rug.weatherIcons[icon] != undefined) {
 			icon = rug.weatherIcons[icon];
+		} else {
+			icon = ":question:";
 		}
 		j += '{' +
-			'"name": "{0} {1}",'.format(icon, forecast[day].date) +
-			'"value": "Low: {0} High: {1}"'.format(forecast[day].low, forecast[day].high) +
+			'"name": "{0} {1}",'.format(icon, date) +
+			'"value": "*{0}*\\nLow: {1} High: {2}"'.format(forecast[day].text, forecast[day].low, forecast[day].high) +
 		'}';
 		if (++count > 2) {
 			break;
