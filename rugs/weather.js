@@ -49,7 +49,10 @@ weather.weatherIcons = {
 	"Rain": ":cloud_rain:",
 	"Mostly Cloudy": ":cloud:",
 	"Mostly Sunny": ":white_sun_cloud:",
-	"Breezy": ":wind_blowing_face:"
+	"Breezy": ":wind_blowing_face:",
+	"Scattered Thunderstorms": ":thunder_cloud_rain:",
+	"Thunderstorms": ":thunder_cloud_rain:",
+	"Snow": ":cloud_snow:"
 };
 
 weather.addCommand("weather", function() {
