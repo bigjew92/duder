@@ -54,7 +54,7 @@ funbox.addCommand("lebowski", function() {
 		content = HTTP.get(4, "http://lebowski.me/api/quotes/search?term=" + cmd.args[1]);
 		json = JSON.parse(content);
 		if (json.results.length == 0) {
-			cmd.replyToChannel("¯\_(ツ)_/¯");
+			cmd.replyToChannel("¯\\_(ツ)_/¯");
 			return;
 		}
 		result = json.results[0];
