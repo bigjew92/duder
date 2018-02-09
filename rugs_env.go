@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/foszor/duder/helpers/rugutils"
@@ -127,8 +128,8 @@ func rugenvSaveAvatar(call otto.FunctionCall) otto.Value {
 		filename = fmt.Sprintf("%s%s", filename, ext)
 	}
 
-	h := createHTTPClient(5)
-	resp, err := h.Get(baseURL)
+	req := http.Client{Timeout: time.Duration(5 * time.Second)}
+	resp, err := req.Get(baseURL)
 	if err != nil {
 		if result, err := js.ToValue("failed to download current avatar."); err == nil {
 			return result
@@ -506,10 +507,19 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	var timeout int64
 	timeout, _ = call.Argument(0).ToInteger()
 	url := call.Argument(1).String()
-	stringResult, _ := call.Argument(2).ToBoolean()
+	headers, _ := call.Argument(2).Export()
+	stringResult, _ := call.Argument(3).ToBoolean()
 
-	h := createHTTPClient(timeout)
-	resp, err := h.Get(url)
+	client := http.Client{Timeout: time.Duration(timeout * int64(time.Second))}
+	req, err := http.NewRequest("GET", url, nil)
+	for k, v := range headers.(map[string]interface{}) {
+		if value, ok := v.(string); ok {
+			req.Header.Add(k, value)
+			Duder.dprintf("Adding header %s : %s", k, value)
+		}
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return otto.FalseValue()
 	}

@@ -117,7 +117,7 @@ admin.addCommand("avatar", function() {
 			cmd.replyToAuthor("invalid link.");
 			return;
 		}
-		var bytes = HTTP.get(4, url, false);
+		var bytes = HTTP.get(4, url, {}, false);
 		if (bytes === false) {
 			cmd.replyToAuthor("unable to download the link.");
 			return;

@@ -160,10 +160,18 @@ Array.prototype.contains = function(elem) {
 
 // HTTP
 function HTTP() {}
-HTTP.get = function(timeout, url, as_string) {
+HTTP.get = function(timeout, url, headers, as_string) {
 	// ensure 'as_string' is bool and default is true
 	as_string = as_string !== false;
-	return __BIND__(timeout, url, as_string);
+
+	// ensure 'headers' is an array
+	if (headers === null || headers === undefined) {
+		headers = {};
+	} else if (!(headers instanceof Object)) {
+		headers = {};
+	}
+
+	return __BIND__(timeout, url, headers, as_string);
 };
 HTTP.post = function(timeout, url, data) {
 	return __BIND__(timeout, url, data);
@@ -185,3 +193,101 @@ Base64.encodeToString = function(bytes) {
 function isNumeric(n) {
 	return !isNaN(parseFloat(n)) && isFinite(n);
 }
+
+// EmbedMessage
+function EmbedMessage() {
+	this.data = {
+		title: null,
+		description: null,
+		url: null,
+		color: null,
+		timestamp: null,
+		footer: null,
+		thumbnail: null,
+		image: null,
+		author: null,
+		fields: null
+	};
+}
+EmbedMessage.prototype.setTitle = function(title) {
+	this.data.title = title;
+};
+EmbedMessage.prototype.setDescription = function(description) {
+	this.data.description = description;
+};
+EmbedMessage.prototype.setURL = function(url) {
+	this.data.url = url;
+};
+EmbedMessage.prototype.setColor = function(color) {
+	this.data.color = color;
+};
+EmbedMessage.prototype.setTimestamp = function() {
+	var dt = new Date();
+	this.data.timestamp = dt.toISOString();
+};
+EmbedMessage.prototype.setFooter = function(icon, text) {
+	this.data.footer = '{\n\t\t"icon_url": "{0}",\n\t\t"text": "{1}"\n\t}'.format(icon, text);
+};
+EmbedMessage.prototype.setThumbnail = function(thumbnail) {
+	this.data.thumbnail = '{\n\t\t"url": "{0}"\n\t}'.format(thumbnail);
+};
+EmbedMessage.prototype.setImage = function(image) {
+	this.data.image = '{\n\t\t"url": "{0}"\n\t}'.format(image);
+};
+EmbedMessage.prototype.setAuthor = function(name, url, icon) {
+	this.data.author = '{\n\t\t"name": "{0}",\n\t\t"url": "{1}",\n\t\t"icon_url": "{2}"\n\t}'.format(name, url, icon);
+};
+EmbedMessage.prototype.addField = function(name, value) {
+	if (this.data.fields == null) {
+		this.data.fields = [];
+	}
+	var field = [name, value];
+	this.data.fields.push(field);
+};
+EmbedMessage.prototype.compile = function() {
+	var content = "";
+	var COMMA = function(c) {
+		return (c.length > 0) ? ",\n" : "";
+	};
+	if (this.data.title != null) {
+		content += COMMA(content) + '\t"title": "{0}"'.format(this.data.title);
+	}
+	if (this.data.description != null) {
+		content += COMMA(content) + '\t"description": "{0}"'.format(this.data.description);
+	}
+	if (this.data.url != null) {
+		content += COMMA(content) + '\t"url": "{0}"'.format(this.data.url);
+	}
+	if (this.data.color != null) {
+		content += COMMA(content) + '\t"color": {0}'.format(this.data.color);
+	}
+	if (this.data.timestamp != null) {
+		content += COMMA(content) + '\t"timestamp": "{0}"'.format(this.data.timestamp);
+	}
+	if (this.data.footer != null) {
+		content += COMMA(content) + '\t"footer": {0}'.format(this.data.footer);
+	}
+	if (this.data.thumbnail != null) {
+		content += COMMA(content) + '\t"thumbnail": {0}'.format(this.data.thumbnail);
+	}
+	if (this.data.image != null) {
+		content += COMMA(content) + '\t"image": {0}'.format(this.data.image);
+	}
+	if (this.data.author != null) {
+		content += COMMA(content) + '\t"author": {0}'.format(this.data.author);
+	}
+	if (this.data.fields != null) {
+		var fields = '\t"fields": [\n';
+		for (var i = 0; i < this.data.fields.length; i++) {
+			var field = this.data.fields[i];
+			fields += '\t\t{\n\t\t\t"name": "{0}",\n\t\t\t"value": "{1}"\n\t\t}{2}\n'.format(field[0], field[1], i < this.data.fields.length - 1 ? "," : "");
+		}
+		fields += "\t]";
+		content += COMMA(content) + fields;
+	}
+	
+	content = "{\n" + content + "\n}";
+	dprint(content);
+
+	return content;
+};
