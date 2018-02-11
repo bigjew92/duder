@@ -458,6 +458,9 @@ func rugenvRugLoadStorage(call otto.FunctionCall) otto.Value {
 				return otto.FalseValue()
 			}
 			log.Printf("Storage file for '%v' created", rug.name)
+			if result, e := js.ToValue("{}"); e == nil {
+				return result
+			}
 		} else {
 			var bytes []byte
 			if bytes, err = ioutil.ReadFile(path); err != nil {

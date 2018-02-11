@@ -58,7 +58,7 @@ youtube.setVideosCache = function(cache) {
 
 youtube.addCommand("yt", function() {
 	var action = cmd.args.length > 1 ? cmd.args[1].toLowerCase() : "playlist";
-
+	
 	if (action == "setkey") {
 		if (cmd.args.length == 3) {
 			rug.setAPIKey(cmd.args[2]);
