@@ -106,6 +106,15 @@ DuderRug.prototype.saveStorage = function(json) {
 	var data = JSON.stringify(json, null, "\t");
 	return __BIND__(this, data);
 };
+DuderRug.prototype.print = function(msg) {
+	__BIND__(this, msg);
+};
+DuderRug.prototype.dprint = function(msg) {
+	__BIND__(this, msg);
+};
+DuderRug.prototype.wprint = function(msg) {
+	__BIND__(this, msg);
+};
 
 // Math
 Math.getRandomInRange = function(min, max) {
@@ -226,7 +235,10 @@ EmbedMessage.prototype.setTimestamp = function() {
 	this.data.timestamp = dt.toISOString();
 };
 EmbedMessage.prototype.setFooter = function(icon, text) {
-	this.data.footer = '{\n\t\t"icon_url": "{0}",\n\t\t"text": "{1}"\n\t}'.format(icon, text);
+	this.data.footer = '{\n\t\t"icon_url": "{0}",\n\t\t"text": "{1}"\n\t}'.format(
+		icon,
+		text
+	);
 };
 EmbedMessage.prototype.setThumbnail = function(thumbnail) {
 	this.data.thumbnail = '{\n\t\t"url": "{0}"\n\t}'.format(thumbnail);
@@ -235,7 +247,11 @@ EmbedMessage.prototype.setImage = function(image) {
 	this.data.image = '{\n\t\t"url": "{0}"\n\t}'.format(image);
 };
 EmbedMessage.prototype.setAuthor = function(name, url, icon) {
-	this.data.author = '{\n\t\t"name": "{0}",\n\t\t"url": "{1}",\n\t\t"icon_url": "{2}"\n\t}'.format(name, url, icon);
+	this.data.author = '{\n\t\t"name": "{0}",\n\t\t"url": "{1}",\n\t\t"icon_url": "{2}"\n\t}'.format(
+		name,
+		url,
+		icon
+	);
 };
 EmbedMessage.prototype.addField = function(name, value) {
 	if (this.data.fields == null) {
@@ -247,13 +263,15 @@ EmbedMessage.prototype.addField = function(name, value) {
 EmbedMessage.prototype.compile = function() {
 	var content = "";
 	var COMMA = function(c) {
-		return (c.length > 0) ? ",\n" : "";
+		return c.length > 0 ? ",\n" : "";
 	};
 	if (this.data.title != null) {
 		content += COMMA(content) + '\t"title": "{0}"'.format(this.data.title);
 	}
 	if (this.data.description != null) {
-		content += COMMA(content) + '\t"description": "{0}"'.format(this.data.description);
+		content +=
+			COMMA(content) +
+			'\t"description": "{0}"'.format(this.data.description);
 	}
 	if (this.data.url != null) {
 		content += COMMA(content) + '\t"url": "{0}"'.format(this.data.url);
@@ -262,13 +280,15 @@ EmbedMessage.prototype.compile = function() {
 		content += COMMA(content) + '\t"color": {0}'.format(this.data.color);
 	}
 	if (this.data.timestamp != null) {
-		content += COMMA(content) + '\t"timestamp": "{0}"'.format(this.data.timestamp);
+		content +=
+			COMMA(content) + '\t"timestamp": "{0}"'.format(this.data.timestamp);
 	}
 	if (this.data.footer != null) {
 		content += COMMA(content) + '\t"footer": {0}'.format(this.data.footer);
 	}
 	if (this.data.thumbnail != null) {
-		content += COMMA(content) + '\t"thumbnail": {0}'.format(this.data.thumbnail);
+		content +=
+			COMMA(content) + '\t"thumbnail": {0}'.format(this.data.thumbnail);
 	}
 	if (this.data.image != null) {
 		content += COMMA(content) + '\t"image": {0}'.format(this.data.image);
@@ -280,14 +300,17 @@ EmbedMessage.prototype.compile = function() {
 		var fields = '\t"fields": [\n';
 		for (var i = 0; i < this.data.fields.length; i++) {
 			var field = this.data.fields[i];
-			fields += '\t\t{\n\t\t\t"name": "{0}",\n\t\t\t"value": "{1}"\n\t\t}{2}\n'.format(field[0], field[1], i < this.data.fields.length - 1 ? "," : "");
+			fields += '\t\t{\n\t\t\t"name": "{0}",\n\t\t\t"value": "{1}"\n\t\t}{2}\n'.format(
+				field[0],
+				field[1],
+				i < this.data.fields.length - 1 ? "," : ""
+			);
 		}
 		fields += "\t]";
 		content += COMMA(content) + fields;
 	}
-	
+
 	content = "{\n" + content + "\n}";
-	dprint(content);
 
 	return content;
 };

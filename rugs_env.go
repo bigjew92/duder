@@ -63,6 +63,9 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvRugAddCommand),
 		bindRugFunction(rugenvRugLoadStorage),
 		bindRugFunction(rugenvRugSaveStorage),
+		bindRugFunction(rugenvRugPrint),
+		bindRugFunction(rugenvRugDPrint),
+		bindRugFunction(rugenvRugWPrint),
 		/* String */
 		bindRugFunction(rugenvStringDecodeHTML),
 		/* HTTP */
@@ -74,13 +77,9 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvBase64EncodeToString))
 
 	if _, err := js.Run(env); err != nil {
-		fmt.Print(env)
-		return errors.New(fmt.Sprint("error creating rug environment: ", err.Error()))
+		//fmt.Print(env)
+		return errors.New(err.Error())
 	}
-
-	js.Set("print", func(msg string) { log.Println("[JS]", msg) })
-	js.Set("dprint", func(msg string) { Duder.dprint("[JS]", msg) })
-	js.Set("wprint", func(msg string) { Duder.wprint("[JS]", msg) })
 
 	return nil
 }
@@ -485,6 +484,36 @@ func rugenvRugSaveStorage(call otto.FunctionCall) otto.Value {
 			log.Print("unable to save rug storage ", err.Error())
 			return otto.FalseValue()
 		}
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugenvRugPrint(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	msg := call.Argument(1).String()
+	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
+		log.Printf("[Rug:%v(%v)] %v", rug.name, rug.file, msg)
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugenvRugDPrint(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	msg := call.Argument(1).String()
+	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
+		Duder.dprintf("[Rug:%v(%v)] %v", rug.name, rug.file, msg)
+		return otto.TrueValue()
+	}
+	return otto.FalseValue()
+}
+
+func rugenvRugWPrint(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	msg := call.Argument(1).String()
+	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
+		Duder.wprintf("[Rug:%v(%v)] %v", rug.name, rug.file, msg)
 		return otto.TrueValue()
 	}
 	return otto.FalseValue()

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -70,7 +71,7 @@ func adminAvatar(session *discordgo.Session, message *discordgo.MessageCreate, c
 		}
 		//print("file " + file + "\n")
 
-		h := createHTTPClient(5)
+		h := http.Client{Timeout: time.Duration(5 * time.Second)}
 		resp, err := h.Get(Duder.me.AvatarURL("256"))
 		if err != nil {
 			replyToAuthor(session, message, "failed to download.", false)
@@ -96,7 +97,7 @@ func adminAvatar(session *discordgo.Session, message *discordgo.MessageCreate, c
 		if avatarURL, err := url.Parse(args[2]); err != nil {
 			replyToAuthor(session, message, "invalid URL.", false)
 		} else {
-			h := createHTTPClient(5)
+			h := http.Client{Timeout: time.Duration(5 * time.Second)}
 			resp, err := h.Get(avatarURL.String())
 			if err != nil {
 				replyToAuthor(session, message, "failed to download.", false)

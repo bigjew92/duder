@@ -5,12 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/fatih/color"
@@ -202,6 +200,29 @@ func (duder *instance) setStatus(status string) error {
 	return nil
 }
 
+func getMessageGuild(session *discordgo.Session, message *discordgo.MessageCreate) (*discordgo.Guild, error) {
+	channel, err := getMessageChannel(session, message)
+	if err != nil {
+		return nil, err
+	}
+	guild, err := session.Guild(channel.GuildID)
+	if err != nil {
+		return nil, errors.New("Unable to get guild")
+	}
+
+	return guild, nil
+}
+
+func getMessageChannel(session *discordgo.Session, message *discordgo.MessageCreate) (*discordgo.Channel, error) {
+	channel, err := session.Channel(message.ChannelID)
+	if err != nil {
+		return nil, errors.New("Unable to get channel")
+	}
+
+	return channel, nil
+}
+
+// onMessageCreate description
 func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
 	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.config.Prefix)) {
 		Duder.dprint("Proccessing command", message.Content)
@@ -256,10 +277,4 @@ func runCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
 			}
 		}
 	}
-}
-
-func createHTTPClient(timeout int64) http.Client {
-	to := time.Duration(5 * time.Second)
-	return http.Client{
-		Timeout: to}
 }

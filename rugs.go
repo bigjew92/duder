@@ -50,7 +50,7 @@ func init() {
 	js = otto.New()
 
 	if err := createRugEnvironment(); err != nil {
-		log.Fatal("Unable to create Rug environment", err.Error())
+		log.Fatal("Unable to create Rug environment==", err.Error())
 	}
 }
 
@@ -188,17 +188,25 @@ func getRugStorageFile(rug Rug) string {
 
 // execRugCommand description
 func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, message *discordgo.MessageCreate, args []string) {
+	// get the message guild ID
+	var guildID string
+	if guild, err := getMessageGuild(session, message); err == nil {
+		guildID = guild.ID
+	}
+
 	// set command environment variables
 	js.Set("rug", rug.object)
 	if _, err := js.Run(fmt.Sprintf(
 		`
 			var cmd = new DuderCommand();
+			cmd.guildID = "%s";
 			cmd.channelID = "%s";
 			cmd.messageID = "%s";
 			cmd.author = new DuderUser("%s", "%s", "%s");
 			cmd.mentions = %s;
 			cmd.args = %s;
 			`,
+		guildID,
 		message.ChannelID,
 		message.ID,
 		message.ChannelID,
