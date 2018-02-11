@@ -180,10 +180,10 @@ xbl.addCommand("xbl", function() {
 		}
 		Duder.startTyping(cmd.channelID);
 		var gamertag = cmd.args[2];
-		url = "https://xbl.io/api/v2/friends/search?gt={0}".format(gamertag);
+		url = "https://xbl.io/api/v2/friends/search?gt={0}".format(gamertag.replaceAll(" ","%20"));
 		rug.dprint(url);
 		content = HTTP.get(10, url, headers);
-		//rug.dprint(content);
+		//rug.print(content);
 		json = JSON.parse(content);
 		if (json.profileUsers == undefined) {
 			cmd.replyToAuthor(
