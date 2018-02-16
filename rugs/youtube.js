@@ -2,66 +2,67 @@ var youtube = new DuderRug("YouTube", "Do stuff with YouTube.");
 youtube.storage = youtube.loadStorage();
 
 youtube.getAPIKey = function() {
-	if (this.storage.settings == undefined) {
+	if (this.storage.settings === undefined) {
 		return false;
-	} else if (this.storage.settings.api_key == undefined) {
+	} else if (this.storage.settings.api_key === undefined) {
 		return false;
 	}
 	return this.storage.settings.api_key;
 };
 
 youtube.setAPIKey = function(key) {
-	if (this.storage.settings == undefined) {
+	if (this.storage.settings === undefined) {
 		this.storage.settings = {};
 	}
 	this.storage.settings.api_key = key;
-	rug.saveStorage(this.storage);
+	this.saveStorage(this.storage);
 };
 
-youtube.getPlaylistID = function() {
-	if (this.storage[cmd.channelID] == undefined) {
+youtube.getPlaylistID = function(guildID) {
+	if (this.storage[guildID] === undefined) {
 		return false;
-	} else if (this.storage[cmd.channelID].playlist == undefined) {
-		return false;
-	}
-	return this.storage[cmd.channelID].playlist;
-};
-
-youtube.setPlaylistID = function(id) {
-	if (this.storage[cmd.channelID] == undefined) {
-		this.storage[cmd.channelID] = {};
-	}
-	this.storage[cmd.channelID].playlist = id;
-	rug.saveStorage(this.storage);
-};
-
-youtube.getVideosCache = function() {
-	if (this.storage[cmd.channelID] == undefined) {
-		return false;
-	} else if (this.storage[cmd.channelID].videos == undefined) {
-		return false;
-	} else if (this.storage[cmd.channelID].videos.cache == undefined) {
+	} else if (this.storage[guildID].playlist === undefined) {
 		return false;
 	}
-	return this.storage[cmd.channelID].videos.cache;
+	return this.storage[guildID].playlist;
 };
 
-youtube.setVideosCache = function(cache) {
-	if (this.storage[cmd.channelID] == undefined) {
-		this.storage[cmd.channelID] = {};
-	} else if (this.storage[cmd.channelID].videos == undefined) {
-		this.storage[cmd.channelID].videos = {};
+youtube.setPlaylistID = function(guildID, id) {
+	if (this.storage[guildID] === undefined) {
+		this.storage[guildID] = {};
 	}
-	this.storage[cmd.channelID].videos.cache = cache;
-	rug.saveStorage(this.storage);
+	this.storage[guildID].playlist = id;
+	this.saveStorage(this.storage);
 };
 
-youtube.addCommand("yt", function() {
+youtube.getVideosCache = function(guildID) {
+	if (this.storage[guildID] === undefined) {
+		return false;
+	} else if (this.storage[guildID].videos === undefined) {
+		return false;
+	} else if (this.storage[guildID].videos.cache === undefined) {
+		return false;
+	}
+	return this.storage[guildID].videos.cache;
+};
+
+youtube.setVideosCache = function(guildID, cache) {
+	if (this.storage[guildID] === undefined) {
+		this.storage[guildID] = {};
+	}
+	if (this.storage[guildID].videos === undefined) {
+		this.storage[guildID].videos = {};
+	}
+	this.storage[guildID].videos.cache = cache;
+	this.saveStorage(this.storage);
+};
+
+youtube.addCommand("yt", function(cmd) {
 	var action = cmd.args.length > 1 ? cmd.args[1].toLowerCase() : "playlist";
-	
-	if (action == "setkey") {
-		if (cmd.args.length == 3) {
-			rug.setAPIKey(cmd.args[2]);
+
+	if (action === "setkey") {
+		if (cmd.args.length === 3) {
+			this.setAPIKey(cmd.args[2]);
 			cmd.replyToAuthor("YouTube API key has been saved.");
 			return;
 		} else {
@@ -70,24 +71,24 @@ youtube.addCommand("yt", function() {
 		}
 	}
 
-	var api_key = rug.getAPIKey();
-	if (api_key == false) {
-		cmd.replyToAuthor("no API key provided.");
+	var api_key = this.getAPIKey();
+	if (api_key === false) {
+		cmd.replyToAuthor("no YouTube API key provided.");
 		return;
 	}
 
-	if (action == "setplaylist") {
-		if (cmd.args.length == 3) {
-			rug.setPlaylistID(cmd.args[2]);
+	if (action === "setplaylist") {
+		if (cmd.args.length === 3) {
+			this.setPlaylistID(cmd.guildID, cmd.args[2]);
 			cmd.replyToAuthor("playlist `" + cmd.args[2] + "` has been saved.");
 			return;
 		} else {
 			cmd.replyToAuthor("usage: `setplaylist PLAYLIST_ID`.");
 			return;
 		}
-	} else if (action == "getplaylist") {
-		var playlist = rug.getPlaylistID();
-		if (playlist == false) {
+	} else if (action === "getplaylist") {
+		var playlist = this.getPlaylistID(cmd.guildID);
+		if (playlist === false) {
 			cmd.replyToAuthor("the playlist hasn't been set.");
 			return;
 		} else {
@@ -96,45 +97,49 @@ youtube.addCommand("yt", function() {
 		}
 	}
 
-	var videos = rug.getVideosCache();
-	if (videos == false || action == "refreshplaylist") {
-		rug.dprint("Updating video cache");
+	var videos = this.getVideosCache(cmd.guildID);
+	if (videos === false || action === "refreshplaylist") {
+		this.dprint("Updating video cache");
 		videos = [];
 
-		var playlistID = rug.getPlaylistID();
-
+		var playlistID = this.getPlaylistID(cmd.guildID);
+		if (playlistID === false) {
+			cmd.replyToAuthor("the playlist hasn't been set.");
+			return;
+		}
 		var baseurl = "https://www.googleapis.com/youtube/v3/playlistItems?playlistId={0}&maxResults=50&part=contentDetails&key={1}".format(
 			playlistID,
 			api_key
 		);
 		var url = baseurl;
-
 		for (var i = 0; i < 10; i++) {
 			var content = HTTP.get(4, url);
-			//rug.print(content);
-			json = JSON.parse(content);
+			this.print(content);
+			var json = JSON.parse(content);
 			for (var k in json.items) {
 				var video = json.items[k];
-				videos.push(video.contentDetails.videoId);
+				if (video.contentDetails !== undefined) {
+					videos.push(video.contentDetails.videoId);
+				}
 			}
 
-			if (json.nextPageToken != undefined) {
+			if (json.nextPageToken !== undefined) {
 				url = baseurl + "&pageToken=" + json.nextPageToken;
 			} else {
 				break;
 			}
 		}
-		rug.setVideosCache(videos);
-		videos = rug.getVideosCache();
-		if (action == "refreshplaylist") {
+		this.setVideosCache(cmd.guildID, videos);
+		videos = this.getVideosCache(cmd.guildID);
+		if (action === "refreshplaylist") {
 			cmd.replyToAuthor("the playlist has been refreshed.");
 		}
 	} else {
-		rug.dprint("Using video cache");
+		this.dprint("Using video cache");
 	}
 
 	var r = Math.getRandomInRange(0, videos.length);
 
-	//rug.print("amount of videos " + videos.length);
+	//this.print("amount of videos " + videos.length);
 	cmd.replyToChannel("https://youtu.be/" + videos[r]);
 });

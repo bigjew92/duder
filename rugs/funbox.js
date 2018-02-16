@@ -1,6 +1,6 @@
 var funbox = new DuderRug("Funbox", "Some silly things to play with.");
 
-funbox.addCommand("dice", function() {
+funbox.addCommand("dice", function(cmd) {
 	sides = 6;
 	if (cmd.args.length > 1) {
 		s = parseInt(cmd.args[1]);
@@ -37,23 +37,26 @@ funbox.eightBallResponses = [
 	"Very doubtful"
 ];
 
-funbox.addCommand("8ball", function() {
-	var r = Math.getRandomInRange(0, rug.eightBallResponses.length - 1);
+funbox.addCommand("8ball", function(cmd) {
+	var r = Math.getRandomInRange(0, this.eightBallResponses.length - 1);
 	cmd.replyToAuthor(
 		"I rub my magic :8ball: balls and the response is `" +
-			rug.eightBallResponses[r] +
+			this.eightBallResponses[r] +
 			"`."
 	);
 });
 
-funbox.addCommand("lebowski", function() {
+funbox.addCommand("lebowski", function(cmd) {
 	var content;
 	var result;
 	var json;
 	if (cmd.args.length > 1) {
-		content = HTTP.get(4, "http://lebowski.me/api/quotes/search?term=" + cmd.args[1]);
+		content = HTTP.get(
+			4,
+			"http://lebowski.me/api/quotes/search?term=" + cmd.args[1]
+		);
 		json = JSON.parse(content);
-		if (json.results.length == 0) {
+		if (json.results.length === 0) {
 			cmd.replyToChannel("¯\\_(ツ)_/¯");
 			return;
 		}
@@ -75,7 +78,7 @@ funbox.addCommand("lebowski", function() {
 	cmd.replyToChannel(quote);
 });
 
-funbox.addCommand("bash", function() {
+funbox.addCommand("bash", function(cmd) {
 	var content = HTTP.get(4, "http://bash.org/?random1");
 	var id = content.match(
 		'(?s)title="Permanent link to this quote."><b>.+?</b></a>'
@@ -136,22 +139,114 @@ funbox.bigText = {
 	z: ":regional_indicator_z:"
 };
 
-// big1
-funbox.addCommand("big", function() {
+// big
+funbox.addCommand("big", function(cmd) {
+	if (cmd.args.length < 2) {
+		return;
+	}
+
+	cmd.args.splice(0, 1);
+	print(cmd.args);
+	var original = cmd.args.join("");
+	var bigged = "";
+	for (var i = 0; i < original.length; i++) {
+		var char = original[i].toLowerCase();
+		if (this.bigText[char] !== undefined) {
+			bigged += this.bigText[char];
+		}
+	}
+
+	cmd.replyToChannel(bigged);
+	cmd.deleteMessage();
+});
+
+funbox.smallText = {
+	" ": " ",
+	"0": "⁰",
+	"1": "¹",
+	"2": "²",
+	"3": "³",
+	"4": "⁴",
+	"5": "⁵",
+	"6": "⁶",
+	"7": "⁷",
+	"8": "⁸",
+	"9": "⁹",
+	a: "ᵃ",
+	b: "ᵇ",
+	c: "ᶜ",
+	d: "ᵈ",
+	e: "ᵉ",
+	f: "ᶠ",
+	g: "ᵍ",
+	h: "ʰ",
+	i: "ᶦ",
+	j: "ʲ",
+	k: "ᵏ",
+	l: "ˡ",
+	m: "ᵐ",
+	n: "ⁿ",
+	o: "ᵒ",
+	p: "ᵖ",
+	q: "ᑫ",
+	r: "ʳ",
+	s: "ˢ",
+	t: "ᵗ",
+	u: "ᵘ",
+	v: "ᵛ",
+	w: "ʷ",
+	x: "ˣ",
+	y: "ʸ",
+	z: "ᶻ",
+	A: "ᴬ",
+	B: "ᴮ",
+	C: "ᶜ",
+	D: "ᴰ",
+	E: "ᴱ",
+	F: "ᶠ",
+	G: "ᴳ",
+	H: "ᴴ",
+	I: "ᴵ",
+	J: "ᴶ",
+	K: "ᴷ",
+	L: "ᴸ",
+	M: "ᴹ",
+	N: "ᴺ",
+	O: "ᴼ",
+	P: "ᴾ",
+	Q: "Q",
+	R: "ᴿ",
+	S: "ˢ",
+	T: "ᵀ",
+	U: "ᵁ",
+	V: "ⱽ",
+	W: "ᵂ",
+	X: "ˣ",
+	Y: "ʸ",
+	Z: "ᶻ",
+	"+": "⁺",
+	"-": "⁻",
+	"=": "⁼",
+	"(": "⁽",
+	")": "⁾"
+};
+
+// small
+funbox.addCommand("smol", function(cmd) {
 	if (cmd.args.length < 2) {
 		return;
 	}
 
 	cmd.args.splice(0, 1);
 	var original = cmd.args.join("");
-	var bigged = "";
+	var smalled = "";
 	for (var i = 0; i < original.length; i++) {
 		var char = original[i].toLowerCase();
-		if (rug.bigText[char] != undefined) {
-			bigged += rug.bigText[char];
+		if (this.smallText[char] !== undefined) {
+			smalled += this.smallText[char];
 		}
 	}
 
-	cmd.replyToChannel(bigged);
+	cmd.replyToChannel(smalled);
 	cmd.deleteMessage();
 });

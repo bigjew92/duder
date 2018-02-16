@@ -1,6 +1,6 @@
 var admin = new DuderRug("Admin", "Duder administration tools.");
 
-admin.addCommand("setstatus", function() {
+admin.addCommand("setstatus", function(cmd) {
 	if (!cmd.author.isOwner) {
 		cmd.replyToAuthor("you are not authorized.");
 		return;
@@ -14,7 +14,7 @@ admin.addCommand("setstatus", function() {
 	}
 });
 
-admin.addCommand("viewuser", function() {
+admin.addCommand("viewuser", function(cmd) {
 	if (!cmd.author.isOwner) {
 		cmd.replyToAuthor("you are not authorized.");
 		return;
@@ -38,18 +38,18 @@ admin.addCommand("viewuser", function() {
 	}
 });
 
-admin.addCommand("setuser", function() {
+admin.addCommand("setuser", function(cmd) {
 	if (!cmd.author.isOwner) {
 		cmd.replyToAuthor("you are not authorized.");
 		return;
-	} else if (cmd.mentions.length != 1 || cmd.args.length < 3) {
+	} else if (cmd.mentions.length !== 1 || cmd.args.length < 3) {
 		cmd.replyToAuthor("usage: `setuser @mention (+/-)permission`");
 		return;
 	}
 
 	var modifier = cmd.args[2].substring(0, 1);
 
-	if (modifier != "+" && modifier != "-") {
+	if (modifier !== "+" && modifier !== "-") {
 		cmd.replyToAuthor(
 			"the permission must start with `+` or `-` to add or remove."
 		);
@@ -58,12 +58,12 @@ admin.addCommand("setuser", function() {
 
 	var perm = cmd.args[2].substring(1);
 
-	resp = cmd.mentions[0].setPermissions(cmd.channelID, perm, modifier == "+");
-	if (resp != null) {
+	resp = cmd.mentions[0].setPermissions(cmd.channelID, perm, modifier === "+");
+	if (resp !== null) {
 		cmd.replyToAuthor("unable to add permission: *" + resp + "*");
 	} else {
 		perms = cmd.mentions[0].getPermissions(cmd.channelID);
-		if (perms.length == 0) {
+		if (perms.length === 0) {
 			cmd.replyToAuthor(
 				cmd.mentions[0].username + " doesn't have any permissions."
 			);
@@ -78,14 +78,14 @@ admin.addCommand("setuser", function() {
 	}
 });
 
-admin.addCommand("viewself", function() {
+admin.addCommand("viewself", function(cmd) {
 	if (cmd.author.isOwner) {
 		cmd.replyToAuthor("you are the owner.");
 		return;
 	}
 
 	var perms = cmd.author.getPermissions(cmd.channelID);
-	if (perms.length == 0) {
+	if (perms.length === 0) {
 		cmd.replyToAuthor("you don't have any permissions.");
 	} else {
 		cmd.replyToAuthor(
@@ -96,7 +96,7 @@ admin.addCommand("viewself", function() {
 
 admin.avatarContentTypes = ["image/png", "image/jpeg"];
 
-admin.addCommand("avatar", function() {
+admin.addCommand("avatar", function(cmd) {
 	if (!cmd.author.isOwner) {
 		cmd.replyToAuthor("you are not authorized.");
 		return;
@@ -105,7 +105,7 @@ admin.addCommand("avatar", function() {
 		return;
 	}
 	var action = cmd.args[1];
-	if (action == "url") {
+	if (action === "url") {
 		if (cmd.args.length < 3) {
 			cmd.replyToAuthor("usage: `avatar url http://link.to/image.png`.");
 			return;
@@ -124,25 +124,25 @@ admin.addCommand("avatar", function() {
 		}
 
 		var contentType = HTTP.detectContentType(bytes);
-		if (contentType == false) {
+		if (contentType === false) {
 			cmd.replyToAuthor("unable to detect content type.");
 			return;
 		}
 
-		if (!rug.avatarContentTypes.contains(contentType)) {
+		if (!this.avatarContentTypes.contains(contentType)) {
 			cmd.replyToAuthor("invalid image type.");
 			return;
 		}
 
 		var base64 = Base64.encodeToString(bytes);
-		if (base64 == false) {
+		if (base64 === false) {
 			cmd.replyToAuthor("unable to encode image.");
 			return;
 		}
 		var avatar = "data:{0};base64,{1}".format(contentType, base64);
 		Duder.setAvatar(avatar);
 		cmd.replyToChannel(":ok_hand:");
-	} else if (action == "save") {
+	} else if (action === "save") {
 		if (cmd.args.length < 3) {
 			cmd.replyToAuthor("usage: `avatar save filename.png`.");
 			return;
@@ -155,7 +155,7 @@ admin.addCommand("avatar", function() {
 			return;
 		}
 		cmd.replyToChannel(":ok_hand:");
-	} else if (action == "list") {
+	} else if (action === "list") {
 		var avatars = Duder.getAvatars();
 		if (avatars === false) {
 			cmd.replyToAuthor("unable to list avatars.");
@@ -173,7 +173,7 @@ admin.addCommand("avatar", function() {
 		}
 		msg += "```";
 		cmd.replyToChannel(msg);
-	} else if (action == "use") {
+	} else if (action === "use") {
 		if (cmd.args.length < 3) {
 			cmd.replyToAuthor("usage: `avatar use filename.png`.");
 			return;
@@ -187,7 +187,4 @@ admin.addCommand("avatar", function() {
 		}
 		cmd.replyToChannel(":ok_hand:");
 	}
-});
-
-admin.addCommand("test", function() {
 });

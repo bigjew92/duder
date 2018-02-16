@@ -26,7 +26,7 @@ func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 	name := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 	name = strings.Replace(name, "main.", "__duder_", -1)
 	Duder.dprint("Binding ", name)
-	js.Set(name, f)
+	Duder.jsvm.Set(name, f)
 	return name
 }
 
@@ -76,12 +76,18 @@ func createRugEnvironment() error {
 		/* Base64 */
 		bindRugFunction(rugenvBase64EncodeToString))
 
-	if _, err := js.Run(env); err != nil {
+	if _, err := Duder.jsvm.Run(env); err != nil {
 		//fmt.Print(env)
 		return errors.New(err.Error())
 	}
 
+	Duder.jsvm.Set("print", func(msg string) { log.Println("[JS]", msg) })
+
 	return nil
+}
+
+func test() {
+
 }
 
 /* Duder */
@@ -91,7 +97,7 @@ func rugenvSetStatus(call otto.FunctionCall) otto.Value {
 		status = ""
 	}
 	if err := Duder.session.UpdateStatus(0, status); err != nil {
-		if result, e := js.ToValue(err.Error()); e == nil {
+		if result, e := Duder.jsvm.ToValue(err.Error()); e == nil {
 			return result
 		}
 	}
@@ -110,7 +116,7 @@ func rugenvSetAvatar(call otto.FunctionCall) otto.Value {
 func rugenvSaveAvatar(call otto.FunctionCall) otto.Value {
 	filename := call.Argument(0).String()
 	if len(filename) == 0 {
-		if result, err := js.ToValue("invalid filename."); err == nil {
+		if result, err := Duder.jsvm.ToValue("invalid filename."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
@@ -130,7 +136,7 @@ func rugenvSaveAvatar(call otto.FunctionCall) otto.Value {
 	req := http.Client{Timeout: time.Duration(5 * time.Second)}
 	resp, err := req.Get(baseURL)
 	if err != nil {
-		if result, err := js.ToValue("failed to download current avatar."); err == nil {
+		if result, err := Duder.jsvm.ToValue("failed to download current avatar."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
@@ -143,13 +149,13 @@ func rugenvSaveAvatar(call otto.FunctionCall) otto.Value {
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		if result, err := js.ToValue("unable to read downloaded file."); err == nil {
+		if result, err := Duder.jsvm.ToValue("unable to read downloaded file."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
 	}
 	if err = ioutil.WriteFile(fmt.Sprintf("%s/%s", Duder.avatarPath, filename), data, 0644); err != nil {
-		if result, err := js.ToValue("unable to save downloaded file."); err == nil {
+		if result, err := Duder.jsvm.ToValue("unable to save downloaded file."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
@@ -173,7 +179,7 @@ func rugenvGetAvatars(call otto.FunctionCall) otto.Value {
 		avatars = append(avatars, f.Name())
 	}
 
-	if result, err := js.ToValue(avatars); err == nil {
+	if result, err := Duder.jsvm.ToValue(avatars); err == nil {
 		return result
 	}
 
@@ -183,12 +189,12 @@ func rugenvGetAvatars(call otto.FunctionCall) otto.Value {
 func rugenvUseAvatar(call otto.FunctionCall) otto.Value {
 	filename := call.Argument(0).String()
 	if len(filename) == 0 {
-		if result, err := js.ToValue("invalid filename."); err == nil {
+		if result, err := Duder.jsvm.ToValue("invalid filename."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
 	} else if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
-		if result, err := js.ToValue("invalid filename."); err == nil {
+		if result, err := Duder.jsvm.ToValue("invalid filename."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
@@ -196,7 +202,7 @@ func rugenvUseAvatar(call otto.FunctionCall) otto.Value {
 
 	filePath := fmt.Sprintf("%s/%s", Duder.avatarPath, filename)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		if result, err := js.ToValue("invalid filename."); err == nil {
+		if result, err := Duder.jsvm.ToValue("invalid filename."); err == nil {
 			return result
 		}
 		return otto.FalseValue()
@@ -207,7 +213,7 @@ func rugenvUseAvatar(call otto.FunctionCall) otto.Value {
 		avatar := fmt.Sprintf("data:%s;base64,%s", http.DetectContentType(bytes), base64)
 		_, err = Duder.session.UserUpdate("", "", "", avatar, "")
 		if err != nil {
-			if result, err := js.ToValue("unable to update avatar."); err == nil {
+			if result, err := Duder.jsvm.ToValue("unable to update avatar."); err == nil {
 				return result
 			}
 			return otto.FalseValue()
@@ -276,7 +282,7 @@ func rugenvRugUserGetPermissions(call otto.FunctionCall) otto.Value {
 	userID := call.Argument(1).String()
 	perms := Duder.permissions.getAll(channelID, userID)
 
-	if result, err := js.Run(rugutils.ConvertUserPermission(perms)); err == nil {
+	if result, err := Duder.jsvm.Run(rugutils.ConvertUserPermission(perms)); err == nil {
 		return result
 	}
 
@@ -291,7 +297,7 @@ func rugenvRugUserSetPermissions(call otto.FunctionCall) otto.Value {
 
 	perm := Duder.permissions.getByName(permName)
 	if perm.Value == -1 {
-		if result, e := js.ToValue(fmt.Sprintf("invalid permission '%s'", permName)); e == nil {
+		if result, e := Duder.jsvm.ToValue(fmt.Sprintf("invalid permission '%s'", permName)); e == nil {
 			return result
 		}
 		return otto.NullValue()
@@ -299,14 +305,14 @@ func rugenvRugUserSetPermissions(call otto.FunctionCall) otto.Value {
 
 	if add {
 		if err := Duder.permissions.addToUser(channelID, userID, perm.Value); err != nil {
-			if result, e := js.ToValue(err.Error()); e == nil {
+			if result, e := Duder.jsvm.ToValue(err.Error()); e == nil {
 				return result
 			}
 			return otto.TrueValue()
 		}
 	} else {
 		if err := Duder.permissions.removeFromUser(channelID, userID, perm.Value); err != nil {
-			if result, e := js.ToValue(err.Error()); e == nil {
+			if result, e := Duder.jsvm.ToValue(err.Error()); e == nil {
 				return result
 			}
 			return otto.TrueValue()
@@ -333,7 +339,7 @@ func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 		}
 	}
 
-	if result, err := js.ToValue(username); err == nil {
+	if result, err := Duder.jsvm.ToValue(username); err == nil {
 		return result
 	}
 	return otto.NullValue()
@@ -401,7 +407,6 @@ func rugenvRugCreate(call otto.FunctionCall) otto.Value {
 	rug.commands = map[string]rugCommand{}
 	rug.object = obj
 
-	//rugMap[fmt.Sprintf("%v", obj)] = rug
 	addRug(rug)
 
 	Duder.dprintf("Created Rug '%v'", name)
@@ -415,14 +420,7 @@ func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 	// validate the trigger
 	trigger := strings.TrimSpace(call.Argument(1).String())
 	if len(trigger) == 0 {
-		Duder.dprintf("Unable to add command to Rug '%v', trigger is empty", rugObj)
-		return otto.FalseValue()
-	}
-
-	// validate the execution code
-	exec := strings.TrimSpace(call.Argument(2).String())
-	if len(exec) == 0 {
-		Duder.dprintf("Unable to add command '%v' to Rug '%v', trigger is empty", trigger, rugObj)
+		Duder.wprintf("Unable to add command to Rug '%v', trigger is empty", rugObj)
 		return otto.FalseValue()
 	}
 
@@ -430,12 +428,11 @@ func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
 		rugCmd := rugCommand{}
 		rugCmd.trigger = trigger
-		//rugCmd.exec = fmt.Sprintf("__execCmd = %s; __execCmd()", exec)
-		rugCmd.exec = fmt.Sprintf("(%s)()", exec)
+		rugCmd.exec = call.Argument(2)
 		rug.commands[trigger] = rugCmd
 		Duder.dprintf("Added command '%v' to Rug '%v'", trigger, rug.name)
 	} else {
-		Duder.dprintf("Unable to add command to Rug '%v'", rugObj)
+		Duder.wprintf("Unable to add command to Rug '%v'", rugObj)
 	}
 
 	return otto.TrueValue()
@@ -458,7 +455,7 @@ func rugenvRugLoadStorage(call otto.FunctionCall) otto.Value {
 				return otto.FalseValue()
 			}
 			log.Printf("Storage file for '%v' created", rug.name)
-			if result, e := js.ToValue("{}"); e == nil {
+			if result, e := Duder.jsvm.ToValue("{}"); e == nil {
 				return result
 			}
 		} else {
@@ -469,7 +466,7 @@ func rugenvRugLoadStorage(call otto.FunctionCall) otto.Value {
 				return otto.FalseValue()
 			}
 
-			if result, e := js.ToValue(string(bytes)); e == nil {
+			if result, e := Duder.jsvm.ToValue(string(bytes)); e == nil {
 				return result
 			}
 		}
@@ -527,7 +524,7 @@ func rugenvStringDecodeHTML(call otto.FunctionCall) otto.Value {
 	text := call.Argument(0).String()
 	text = html.UnescapeString(text)
 
-	if result, err := js.ToValue(text); err == nil {
+	if result, err := Duder.jsvm.ToValue(text); err == nil {
 		return result
 	}
 
@@ -563,12 +560,12 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	}
 
 	if stringResult {
-		if result, err := js.ToValue(string(body)); err == nil {
+		if result, err := Duder.jsvm.ToValue(string(body)); err == nil {
 			Duder.dprint("http.Get returning string")
 			return result
 		}
 	} else {
-		if result, err := js.ToValue(body); err == nil {
+		if result, err := Duder.jsvm.ToValue(body); err == nil {
 			Duder.dprint("http.Get returning byte array")
 			return result
 		}
@@ -606,7 +603,7 @@ func rugenvHTTPDetectContentType(call otto.FunctionCall) otto.Value {
 	}
 
 	contentType := http.DetectContentType(data)
-	if result, err := js.ToValue(contentType); err == nil {
+	if result, err := Duder.jsvm.ToValue(contentType); err == nil {
 		return result
 	}
 	return otto.FalseValue()
@@ -615,7 +612,7 @@ func rugenvHTTPDetectContentType(call otto.FunctionCall) otto.Value {
 func rugenvHTTPParseURL(call otto.FunctionCall) otto.Value {
 	urlString := call.Argument(0).String()
 	if u, err := url.Parse(urlString); err == nil {
-		if result, err := js.ToValue(u.String()); err == nil {
+		if result, err := Duder.jsvm.ToValue(u.String()); err == nil {
 			return result
 		}
 	}
@@ -631,7 +628,7 @@ func rugenvBase64EncodeToString(call otto.FunctionCall) otto.Value {
 	}
 
 	str := base64.StdEncoding.EncodeToString(data)
-	if result, err := js.ToValue(str); err == nil {
+	if result, err := Duder.jsvm.ToValue(str); err == nil {
 		return result
 	}
 	return otto.FalseValue()

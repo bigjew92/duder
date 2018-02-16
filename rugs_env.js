@@ -25,7 +25,7 @@ DuderPermission.permissions = __BIND__;
 DuderPermission.getName = function(value) {
 	value = value.toString();
 	for (var name in DuderPermission.permissions) {
-		if (DuderPermission.permissions[name] == value) {
+		if (DuderPermission.permissions[name] === value) {
 			return name;
 		}
 	}
@@ -56,7 +56,7 @@ DuderUser.prototype.getPermissions = function(channelID) {
 };
 DuderUser.prototype.setPermissions = function(channelID, permission, add) {
 	// ensure add is boolean
-	add = add == true;
+	add = add === true;
 	return __BIND__(channelID, this.id, permission, add);
 };
 DuderUser.getUsernameByID = function(channelID, userID) {
@@ -64,8 +64,13 @@ DuderUser.getUsernameByID = function(channelID, userID) {
 };
 
 // Define DuderCommand class
-function DuderCommand() {
-	this.mentions = [];
+function DuderCommand(guildID, channelID, messageID, author, mentions, args) {
+	this.guildID = guildID;
+	this.channelID = channelID;
+	this.messageID = messageID;
+	this.author = author;
+	this.mentions = mentions;
+	this.args = args;
 }
 DuderCommand.prototype.replyToChannel = function(content) {
 	__BIND__(this.channelID, content);
@@ -75,7 +80,7 @@ DuderCommand.prototype.replyToChannelEmbed = function(content) {
 };
 DuderCommand.prototype.replyToAuthor = function(content, mention) {
 	// ensure 'mention' is bool and default is false
-	mention = mention == true;
+	mention = mention === true;
 	__BIND__(
 		this.channelID,
 		this.author.id,
@@ -85,7 +90,7 @@ DuderCommand.prototype.replyToAuthor = function(content, mention) {
 	);
 };
 DuderCommand.prototype.isMention = function(str) {
-	return str.substring(0, 2) == "<@" && str.substring(str.length - 1) == ">";
+	return str.substring(0, 2) === "<@" && str.substring(str.length - 1) === ">";
 };
 DuderCommand.prototype.deleteMessage = function() {
 	__BIND__(this.channelID, this.messageID);
@@ -144,7 +149,7 @@ String.prototype.toBinary = function() {
 String.prototype.format = function() {
 	var args = arguments;
 	return this.replace(/{(\d+)}/g, function(match, number) {
-		return typeof args[number] != "undefined" ? args[number] : match;
+		return typeof args[number] !== "undefined" ? args[number] : match;
 	});
 };
 String.prototype.matchAll = function(regexp) {
@@ -162,7 +167,7 @@ String.prototype.matchAll = function(regexp) {
 // Array
 Array.prototype.contains = function(elem) {
 	for (var i in this) {
-		if (this[i] == elem) return true;
+		if (this[i] === elem) return true;
 	}
 	return false;
 };
@@ -254,7 +259,7 @@ EmbedMessage.prototype.setAuthor = function(name, url, icon) {
 	);
 };
 EmbedMessage.prototype.addField = function(name, value) {
-	if (this.data.fields == null) {
+	if (this.data.fields === null) {
 		this.data.fields = [];
 	}
 	var field = [name, value];
@@ -265,38 +270,38 @@ EmbedMessage.prototype.compile = function() {
 	var COMMA = function(c) {
 		return c.length > 0 ? ",\n" : "";
 	};
-	if (this.data.title != null) {
+	if (this.data.title !== null) {
 		content += COMMA(content) + '\t"title": "{0}"'.format(this.data.title);
 	}
-	if (this.data.description != null) {
+	if (this.data.description !== null) {
 		content +=
 			COMMA(content) +
 			'\t"description": "{0}"'.format(this.data.description);
 	}
-	if (this.data.url != null) {
+	if (this.data.url !== null) {
 		content += COMMA(content) + '\t"url": "{0}"'.format(this.data.url);
 	}
-	if (this.data.color != null) {
+	if (this.data.color !== null) {
 		content += COMMA(content) + '\t"color": {0}'.format(this.data.color);
 	}
-	if (this.data.timestamp != null) {
+	if (this.data.timestamp !== null) {
 		content +=
 			COMMA(content) + '\t"timestamp": "{0}"'.format(this.data.timestamp);
 	}
-	if (this.data.footer != null) {
+	if (this.data.footer !== null) {
 		content += COMMA(content) + '\t"footer": {0}'.format(this.data.footer);
 	}
-	if (this.data.thumbnail != null) {
+	if (this.data.thumbnail !== null) {
 		content +=
 			COMMA(content) + '\t"thumbnail": {0}'.format(this.data.thumbnail);
 	}
-	if (this.data.image != null) {
+	if (this.data.image !== null) {
 		content += COMMA(content) + '\t"image": {0}'.format(this.data.image);
 	}
-	if (this.data.author != null) {
+	if (this.data.author !== null) {
 		content += COMMA(content) + '\t"author": {0}'.format(this.data.author);
 	}
-	if (this.data.fields != null) {
+	if (this.data.fields !== null) {
 		var fields = '\t"fields": [\n';
 		for (var i = 0; i < this.data.fields.length; i++) {
 			var field = this.data.fields[i];

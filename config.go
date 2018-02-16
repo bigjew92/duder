@@ -38,9 +38,9 @@ func loadConfig(path string) error {
 	// validate the config file
 	path = strings.TrimSpace(path)
 	if len(path) == 0 {
-		return errors.New("configuration file is undefined")
+		return errors.New("Configuration file isn't defined")
 	}
-	log.Print("Loading configuration file: ", path)
+	log.Printf("Loading configuration file '%s'", path)
 
 	// check if the file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -57,9 +57,9 @@ func loadConfig(path string) error {
 
 		// create the configuration file
 		if err := ioutil.WriteFile(path, []byte(configData), 0644); err != nil {
-			return errors.New(fmt.Sprint("unable to create configuration file ", path, err.Error()))
+			return errors.New(fmt.Sprint("Unable to create configuration file ", path, err.Error()))
 		}
-		log.Printf("Configuration file %v created", path)
+		log.Printf("Created configuration file '%s'", path)
 
 		// load the configuration data
 		if _, err := toml.Decode(configData, &Duder.config); err != nil {

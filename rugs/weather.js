@@ -7,7 +7,7 @@ weather.getUserLocation = function(userID) {
 	}
 	for (var i = 0; i < this.storage.users.length; i++) {
 		var user = this.storage.users[i];
-		if (user.userID == userID) {
+		if (user.userID === userID) {
 			return user.location;
 		}
 	}
@@ -15,12 +15,12 @@ weather.getUserLocation = function(userID) {
 };
 
 weather.setUserLocation = function(userID, location) {
-	if (this.storage.users == undefined) {
+	if (this.storage.users === undefined) {
 		this.storage.users = [];
 	}
 	var found = false;
 	for (var i = 0; i < this.storage.users.length; i++) {
-		if (this.storage.users[i].userID == userID) {
+		if (this.storage.users[i].userID === userID) {
 			this.storage.users[i].location = location;
 			found = true;
 			break;
@@ -29,7 +29,7 @@ weather.setUserLocation = function(userID, location) {
 	if (!found) {
 		this.storage.users.push({ userID: userID, location: location });
 	}
-	rug.saveStorage(this.storage);
+	this.saveStorage(this.storage);
 };
 
 weather.padRight = function(text, len) {
@@ -55,12 +55,12 @@ weather.weatherIcons = {
 	"Snow": ":cloud_snow:"
 };
 
-weather.addCommand("weather", function() {
+weather.addCommand("weather", function(cmd) {
 	var citystate = "";
 	
 	if (cmd.args.length < 2) {
-		var location = rug.getUserLocation(cmd.author.id);
-		if (location == false) {
+		var location = this.getUserLocation(cmd.author.id);
+		if (location === false) {
 			cmd.replyToAuthor("usage: `weather city, ST`");
 			return;
 		}
@@ -83,7 +83,7 @@ weather.addCommand("weather", function() {
 
 	var content = HTTP.get(4, url);
 	var json = JSON.parse(content);
-	if (json.query.count == 0) {
+	if (json.query.count === 0) {
 		cmd.replyToAuthor("no weather results found for that location.");
 		return;
 	}
@@ -101,8 +101,8 @@ weather.addCommand("weather", function() {
 	for (var day in forecast) {
 		var date = forecast[day].date.substring(0,forecast[day].date.length - 5);
 		var icon = forecast[day].text;
-		if (rug.weatherIcons[icon] != undefined) {
-			icon = rug.weatherIcons[icon];
+		if (this.weatherIcons[icon] !== undefined) {
+			icon = this.weatherIcons[icon];
 		} else {
 			icon = ":question:";
 		}
@@ -120,6 +120,6 @@ weather.addCommand("weather", function() {
 
 	j += '}';
 
-	rug.setUserLocation(cmd.author.id, citystate);
+	this.setUserLocation(cmd.author.id, citystate);
 	cmd.replyToChannelEmbed(j);	
 });

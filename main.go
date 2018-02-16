@@ -14,6 +14,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/go-fsnotify/fsnotify"
+	"github.com/robertkrimen/otto"
 )
 
 // VERSION contains the current version
@@ -30,9 +31,10 @@ type instance struct {
 	shutdownSignal  chan os.Signal
 	permissionsPath string
 	permissions     permissions
-	rugHotload      bool
-	rugHotloader    *fsnotify.Watcher
+	hotReloading    bool
+	rugWatcher      *fsnotify.Watcher
 	avatarPath      string
+	jsvm            *otto.Otto
 }
 
 // Duder contains the bot instance
@@ -42,7 +44,7 @@ func init() {
 	flag.StringVar(&Duder.configPath, "config", "config.toml", "Location of the configuration file, if not found it will be generated (default config.toml)")
 	flag.StringVar(&Duder.permissionsPath, "permissions", "permissions.json", "Location of the permissions file (default permissions.json)")
 	flag.BoolVar(&Duder.debug, "debug", true, "Enable debug mode")
-	flag.BoolVar(&Duder.rugHotload, "hotload", true, "Enable or disable rug hotloading")
+	flag.BoolVar(&Duder.hotReloading, "hotload", true, "Enable or disable rug hot reloading")
 	flag.StringVar(&Duder.avatarPath, "avatarPath", "avatars", "Location of avatars (default avatars)")
 	flag.Parse()
 
@@ -69,11 +71,11 @@ func main() {
 	}
 
 	// observe rugs for hotloading
-	if Duder.rugHotload {
+	if Duder.hotReloading {
 		if rugHotloader, err := observeRugs(Duder.config.RugPath); err != nil {
 			Duder.dprint("Failed to monitor rugs for hotload, ", err)
 		} else {
-			Duder.rugHotloader = rugHotloader
+			Duder.rugWatcher = rugHotloader
 		}
 	}
 
@@ -92,7 +94,7 @@ func main() {
 		log.Fatal("Error obtaining bot account details, ", err)
 	}
 	Duder.me = me
-	log.Println("\tBot client ID: ", Duder.me.ID)
+	log.Println("> Bot Client ID:", Duder.me.ID)
 
 	// obtain owner account details
 	log.Println("Obtaining owner account details")
@@ -101,7 +103,7 @@ func main() {
 		log.Fatal("Error obtaining owner account details, ", err)
 	}
 	Duder.owner = owner
-	log.Print("\tOwner client ID: ", Duder.owner.ID)
+	log.Print("> Owner Client ID:", Duder.owner.ID)
 
 	// register callback for messageCreate
 	Duder.session.AddHandler(onMessageCreate)
@@ -180,8 +182,8 @@ func (duder *instance) teardown() (err error) {
 		return
 	}
 
-	if duder.rugHotloader != nil {
-		defer duder.rugHotloader.Close()
+	if duder.rugWatcher != nil {
+		defer duder.rugWatcher.Close()
 	}
 
 	return
