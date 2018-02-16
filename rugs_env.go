@@ -81,8 +81,6 @@ func createRugEnvironment() error {
 		return errors.New(err.Error())
 	}
 
-	Duder.jsvm.Set("print", func(msg string) { log.Println("[JS]", msg) })
-
 	return nil
 }
 

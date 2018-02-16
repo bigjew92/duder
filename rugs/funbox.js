@@ -146,7 +146,6 @@ funbox.addCommand("big", function(cmd) {
 	}
 
 	cmd.args.splice(0, 1);
-	print(cmd.args);
 	var original = cmd.args.join("");
 	var bigged = "";
 	for (var i = 0; i < original.length; i++) {

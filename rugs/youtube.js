@@ -114,7 +114,6 @@ youtube.addCommand("yt", function(cmd) {
 		var url = baseurl;
 		for (var i = 0; i < 10; i++) {
 			var content = HTTP.get(4, url);
-			this.print(content);
 			var json = JSON.parse(content);
 			for (var k in json.items) {
 				var video = json.items[k];
