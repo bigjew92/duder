@@ -1,11 +1,11 @@
 var admin = new DuderRug("Admin", "Duder administration tools.");
 
-admin.addCommand("setstatus", function(cmd) {
+admin.addCommand("status", function(cmd) {
 	if (!cmd.author.isOwner) {
 		cmd.replyToAuthor("you are not authorized.");
 		return;
 	} else if (cmd.args.length < 2) {
-		cmd.replyToAuthor('usage: `setstatus "New Status"`');
+		cmd.replyToAuthor('usage: `status "New Status"`');
 		return;
 	}
 	var resp = Duder.setStatus(cmd.args[1]);
@@ -23,7 +23,7 @@ admin.addCommand("viewuser", function(cmd) {
 		return;
 	}
 
-	var perms = cmd.mentions[0].getPermissions(cmd.channelID);
+	var perms = cmd.mentions[0].getPermissions(cmd.guildID);
 	if (perms.length === 0) {
 		cmd.replyToAuthor(
 			cmd.mentions[0].username + " doesn't have any permissions."
@@ -58,11 +58,15 @@ admin.addCommand("setuser", function(cmd) {
 
 	var perm = cmd.args[2].substring(1);
 
-	resp = cmd.mentions[0].setPermissions(cmd.channelID, perm, modifier === "+");
+	var resp = cmd.mentions[0].setPermissions(
+		cmd.guildID,
+		perm,
+		modifier === "+"
+	);
 	if (resp !== null) {
 		cmd.replyToAuthor("unable to add permission: *" + resp + "*");
 	} else {
-		perms = cmd.mentions[0].getPermissions(cmd.channelID);
+		var perms = cmd.mentions[0].getPermissions(cmd.guildID);
 		if (perms.length === 0) {
 			cmd.replyToAuthor(
 				cmd.mentions[0].username + " doesn't have any permissions."
@@ -84,7 +88,7 @@ admin.addCommand("viewself", function(cmd) {
 		return;
 	}
 
-	var perms = cmd.author.getPermissions(cmd.channelID);
+	var perms = cmd.author.getPermissions(cmd.guildID);
 	if (perms.length === 0) {
 		cmd.replyToAuthor("you don't have any permissions.");
 	} else {

@@ -228,10 +228,14 @@ xbl.addCommand("xbl", function(cmd) {
 			this.dprint("requesting profile");
 			var url = "https://xbl.io/api/v2/account/{0}".format(XUID);
 			var content = HTTP.get(10, url, headers);
-			this.print(content);
+			if (content === undefined || content.length === 0) {
+				cmd.replyToAuthor("unable to retrieve profile");
+				return;
+			}
+			this.dprint(content);
 			json = JSON.parse(content);
 			if (json.profileUsers === undefined) {
-				cmd.replyToAuthor("unable to retrieve profile");
+				cmd.replyToAuthor("unable to parse profile");
 				return;
 			}
 			profile = this.parseProfileSettings(json.profileUsers[0].settings);

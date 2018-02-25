@@ -56,7 +56,7 @@ func ConvertMentions(message *discordgo.MessageCreate) string {
 		}
 		buffer.WriteString(fmt.Sprintf("new DuderUser(\"%s\",\"%s\",\"%s\")", message.ChannelID, mention.ID, mention.Username))
 	}
-	buffer.WriteString(")")
+	buffer.WriteString(" )")
 	return buffer.String()
 }
 
@@ -71,7 +71,7 @@ func ConvertArgs(args []string) string {
 		}
 		buffer.WriteString(fmt.Sprintf("\"%s\"", arg))
 	}
-	buffer.WriteString(")")
+	buffer.WriteString(" )")
 	return buffer.String()
 }
 
@@ -86,6 +86,6 @@ func ConvertUserPermission(perms []int) string {
 		}
 		buffer.WriteString(fmt.Sprintf("\"%v\"", p))
 	}
-	buffer.WriteString(")")
+	buffer.WriteString(" )")
 	return buffer.String()
 }

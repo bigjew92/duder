@@ -70,10 +70,10 @@ func main() {
 		log.Fatal("Failed to load rugs, ", err)
 	}
 
-	// observe rugs for hotloading
+	// observe rugs for hot reloading
 	if Duder.hotReloading {
 		if rugHotloader, err := observeRugs(Duder.config.RugPath); err != nil {
-			Duder.dprint("Failed to monitor rugs for hotload, ", err)
+			Duder.dprint("Failed to monitor rugs for hot reloading, ", err)
 		} else {
 			Duder.rugWatcher = rugHotloader
 		}
@@ -103,7 +103,7 @@ func main() {
 		log.Fatal("Error obtaining owner account details, ", err)
 	}
 	Duder.owner = owner
-	log.Print("> Owner Client ID:", Duder.owner.ID)
+	log.Println("> Owner Client ID:", Duder.owner.ID)
 
 	// register callback for messageCreate
 	Duder.session.AddHandler(onMessageCreate)
@@ -115,7 +115,7 @@ func main() {
 		log.Fatal("Error opening discord connection,", err)
 	}
 
-	Duder.setStatus("with Maude")
+	Duder.setStatus(Duder.config.Status)
 	log.Println("Bot is now running.")
 
 	// register bot sg.shutdown channel to receive shutdown signals.

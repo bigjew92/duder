@@ -127,7 +127,7 @@ func observeRugs(path string) (*fsnotify.Watcher, error) {
 					// make sure the file is .js
 					if strings.HasSuffix(file, ".js") {
 						Duder.dprintf("Rug file modified '%s'", file)
-						if rug, e := getRugByFile(file); e == nil {
+						if rug, ok := getRugByFile(file); ok {
 							duration := time.Since(rug.loaded)
 							if duration.Seconds() > 0.5 {
 								key := getRugKey(rug)
@@ -169,14 +169,22 @@ func addRug(rug Rug) {
 }
 
 // getRugByFile description
-func getRugByFile(file string) (Rug, error) {
+func getRugByFile(file string) (Rug, bool) {
 	// check each rug to find the matching file
 	for _, rug := range rugMap {
 		if rug.file == file {
-			return rug, nil
+			return rug, true
 		}
 	}
-	return Rug{}, errors.New("Unable to find rug")
+	return Rug{}, false
+}
+
+// getRugByObject description
+func getRugByObject(rugObj otto.Object) (Rug, bool) {
+	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
+		return rug, true
+	}
+	return Rug{}, false
 }
 
 // getRugStorageFile description
@@ -200,35 +208,28 @@ func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, mes
 	}
 
 	// create the mentions array value
-	/*
-		var cmdMentions []otto.Value
-		for _, m := range message.Mentions {
-			mention, _ := Duder.jsvm.Call("new DuderUser", nil, message.ChannelID, m.ID, m.Username)
-			cmdMentions = append(cmdMentions, mention)
-		}
-	*/
 	cmdMentions, err := Duder.jsvm.Object(rugutils.ConvertMentions(message))
 	if err != nil {
-		Duder.wprint("Unable to convert mentions ", err.Error())
+		Duder.wprint("Unable to convert mentions", err.Error())
 		return
 	}
 
 	// create the arguments array value
 	cmdArgs, err := Duder.jsvm.Object(rugutils.ConvertArgs(args))
 	if err != nil {
-		Duder.wprint("Unable to convert args ", err.Error())
+		Duder.wprint("Unable to convert arguments", err.Error())
 		return
 	}
 
 	// create the command
 	cmd, err := Duder.jsvm.Call("new DuderCommand", nil, guildID, message.ChannelID, message.ID, cmdAuthor, cmdMentions, cmdArgs)
 	if err != nil {
-		Duder.wprint("Unable to make command ", err.Error())
+		Duder.wprint("Unable to make command", err.Error())
 	}
 
 	// execute the command
 	if _, err := command.exec.Call(rug.object.Value(), cmd); err != nil {
-		Duder.wprint("Unable to run command ", err.Error())
+		Duder.wprint("Unable to run command", err.Error())
 	}
 
 	// check for any leaked variables (strict mode; weren't declared) and delete them
@@ -236,7 +237,6 @@ func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, mes
 			(function() {
 				var __leaks__ = [];
 				for (var __n__ in this) {
-					//print(__n__);
 					if (typeof this[__n__] == "function") {
 						continue;
 					}
@@ -247,7 +247,7 @@ func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, mes
 				}
 				return __leaks__;
 			})()`); err != nil {
-		log.Print("Failed to check for leaks ", err.Error())
+		Duder.wprint("Failed to check for leaks", err.Error())
 	} else {
 		var leaks []string
 		export, _ := result.Export()
@@ -262,4 +262,8 @@ func execRugCommand(rug Rug, command rugCommand, session *discordgo.Session, mes
 	}
 	// clean up
 	Duder.jsvm.Run(`delete __leaks__;`)
+}
+
+func (rug *Rug) logPrefix() string {
+	return fmt.Sprintf("[Rug:%s(%s)]", rug.name, rug.file)
 }

@@ -14,6 +14,7 @@ import (
 type config struct {
 	BotToken string `toml:"bot_token"`
 	OwnerID  string `toml:"owner_ID"`
+	Status   string `toml:"status"`
 	RugPath  string `toml:"rug_path"`
 	Prefix   string `toml:"prefix"`
 }
@@ -25,6 +26,9 @@ bot_token = "BOT_TOKEN"
 
 # Discord client ID for bot owner
 owner_ID = "OWNER_ID"
+
+# Discord status for bot
+status = "with Maude"
 
 # Path where Rugs are located
 rug_path = "rugs"

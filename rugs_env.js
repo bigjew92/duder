@@ -35,6 +35,9 @@ DuderPermission.getName = function(value) {
 DuderPermission.getNames = function(values) {
 	var names = "";
 	for (var value in values) {
+		if (typeof values[value] !== 'string') {
+			continue;
+		}
 		if (names.length > 0) {
 			names += ", ";
 		}
@@ -51,16 +54,16 @@ function DuderUser(channelID, id, username) {
 	this.isOwner = __BIND__(channelID, id);
 	this.isModerator = __BIND__(channelID, id);
 }
-DuderUser.prototype.getPermissions = function(channelID) {
-	return __BIND__(channelID, this.id);
+DuderUser.prototype.getPermissions = function(guildID) {
+	return __BIND__(guildID, this.id);
 };
-DuderUser.prototype.setPermissions = function(channelID, permission, add) {
+DuderUser.prototype.setPermissions = function(guildID, permission, add) {
 	// ensure add is boolean
 	add = add === true;
-	return __BIND__(channelID, this.id, permission, add);
+	return __BIND__(guildID, this.id, permission, add);
 };
-DuderUser.getUsernameByID = function(channelID, userID) {
-	return __BIND__(channelID, userID);
+DuderUser.getUsernameByID = function(guildID, userID) {
+	return __BIND__(guildID, userID);
 };
 
 // Define DuderCommand class
@@ -110,9 +113,6 @@ DuderRug.prototype.loadStorage = function() {
 DuderRug.prototype.saveStorage = function(json) {
 	var data = JSON.stringify(json, null, "\t");
 	return __BIND__(this, data);
-};
-DuderRug.prototype.print = function(msg) {
-	__BIND__(this, msg);
 };
 DuderRug.prototype.dprint = function(msg) {
 	__BIND__(this, msg);

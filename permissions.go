@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-type permissionsChannel struct {
+type permissionsGuild struct {
 	Users map[string][]int
 }
 
 type permissions struct {
-	Channels map[string]permissionsChannel
+	Guilds map[string]permissionsGuild
 }
 
 const (
@@ -98,11 +98,11 @@ func (p *permissions) getByValue(value int) permissionDefinition {
 }
 
 // getAll description
-func (p *permissions) getAll(channelID string, userID string) []int {
+func (p *permissions) getAll(guildID string, userID string) []int {
 	var perms []int
 
-	if channel, ok := p.Channels[channelID]; ok {
-		if user, ok := channel.Users[userID]; ok {
+	if guild, ok := p.Guilds[guildID]; ok {
+		if user, ok := guild.Users[userID]; ok {
 			perms = user
 		}
 	}
@@ -111,22 +111,22 @@ func (p *permissions) getAll(channelID string, userID string) []int {
 }
 
 // addToUser description
-func (p *permissions) addToUser(channelID string, userID string, perm int) error {
-	if len(p.Channels) == 0 {
-		p.Channels = make(map[string]permissionsChannel)
+func (p *permissions) addToUser(guildID string, userID string, perm int) error {
+	if len(p.Guilds) == 0 {
+		p.Guilds = make(map[string]permissionsGuild)
 	}
-	var channel permissionsChannel
-	if c, ok := p.Channels[channelID]; !ok {
-		channel = permissionsChannel{}
-		channel.Users = make(map[string][]int)
-		p.Channels[channelID] = channel
+	var guild permissionsGuild
+	if g, ok := p.Guilds[guildID]; !ok {
+		guild = permissionsGuild{}
+		guild.Users = make(map[string][]int)
+		p.Guilds[guildID] = guild
 	} else {
-		channel = c
+		guild = g
 	}
 
 	var perms []int
 
-	if p, ok := channel.Users[userID]; ok {
+	if p, ok := guild.Users[userID]; ok {
 		perms = p
 	}
 
@@ -138,24 +138,24 @@ func (p *permissions) addToUser(channelID string, userID string, perm int) error
 
 	perms = append(perms, perm)
 
-	channel.Users[userID] = perms
+	guild.Users[userID] = perms
 	p.save()
 	return nil
 }
 
 // removeFromUser description
-func (p *permissions) removeFromUser(channelID string, userID string, perm int) error {
-	var channel permissionsChannel
-	if c, ok := p.Channels[channelID]; ok {
-		channel = c
+func (p *permissions) removeFromUser(guildID string, userID string, perm int) error {
+	var guild permissionsGuild
+	if g, ok := p.Guilds[guildID]; ok {
+		guild = g
 	} else {
-		return errors.New("no permissions set on channel")
+		return errors.New("no permissions set on guild")
 	}
 
 	var perms []int
 	var newPerms []int
 
-	if p, ok := channel.Users[userID]; ok {
+	if p, ok := guild.Users[userID]; ok {
 		perms = p
 	}
 
@@ -172,14 +172,14 @@ func (p *permissions) removeFromUser(channelID string, userID string, perm int) 
 		return errors.New("user doesn't have that permission")
 	}
 
-	channel.Users[userID] = newPerms
+	guild.Users[userID] = newPerms
 	p.save()
 	return nil
 }
 
 // hasPermission description
-func (p *permissions) hasPermission(channelID string, userID string, perm int) bool {
-	perms := p.getAll(channelID, userID)
+func (p *permissions) hasPermission(guildID string, userID string, perm int) bool {
+	perms := p.getAll(guildID, userID)
 	for _, cp := range perms {
 		if cp == perm {
 			return true
@@ -189,19 +189,19 @@ func (p *permissions) hasPermission(channelID string, userID string, perm int) b
 }
 
 // isOwner description
-func (p *permissions) isOwner(channelID string, userID string) bool {
+func (p *permissions) isOwner(guildID string, userID string) bool {
 	if userID == Duder.config.OwnerID {
 		return true
 	}
-	return p.hasPermission(channelID, userID, PermissionOwner)
+	return p.hasPermission(guildID, userID, PermissionOwner)
 }
 
 // isModerator description
-func (p *permissions) isModerator(channelID string, userID string) bool {
+func (p *permissions) isModerator(guildID string, userID string) bool {
 	if userID == Duder.config.OwnerID {
 		return true
 	}
-	return p.hasPermission(channelID, userID, PermissionModerator)
+	return p.hasPermission(guildID, userID, PermissionModerator)
 }
 
 // save description
