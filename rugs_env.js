@@ -62,6 +62,9 @@ DuderUser.prototype.setPermissions = function(guildID, permission, add) {
 	add = add === true;
 	return __BIND__(guildID, this.id, permission, add);
 };
+DuderUser.prototype.setNickname = function(guildID, nickname) {
+	return __BIND__(guildID, this.id, nickname);
+};
 DuderUser.getUsernameByID = function(guildID, userID) {
 	return __BIND__(guildID, userID);
 };

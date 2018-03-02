@@ -52,6 +52,7 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvRugUserGetIsModerator),
 		bindRugFunction(rugenvRugUserGetPermissions),
 		bindRugFunction(rugenvRugUserSetPermissions),
+		bindRugFunction(rugenvRugUserSetNickname),
 		bindRugFunction(rugenvRugUserGetUsernameByID),
 		/* DuderCommand */
 		bindRugFunction(rugenvRugCommandReplyToChannel),
@@ -236,22 +237,26 @@ func rugenvGetPermissionsDefinition() string {
 func rugenvRugUserGetIsOwner(call otto.FunctionCall) otto.Value {
 	guildID := call.Argument(0).String()
 	userID := call.Argument(1).String()
+
 	if userID == Duder.config.OwnerID {
 		return otto.TrueValue()
 	} else if Duder.permissions.isOwner(guildID, userID) {
 		return otto.TrueValue()
 	}
+
 	return otto.FalseValue()
 }
 
 func rugenvRugUserGetIsModerator(call otto.FunctionCall) otto.Value {
 	guildID := call.Argument(0).String()
 	userID := call.Argument(1).String()
+
 	if userID == Duder.config.OwnerID {
 		return otto.TrueValue()
 	} else if Duder.permissions.isModerator(guildID, userID) {
 		return otto.TrueValue()
 	}
+
 	return otto.FalseValue()
 }
 
@@ -264,7 +269,7 @@ func rugenvRugUserGetPermissions(call otto.FunctionCall) otto.Value {
 		return result
 	}
 
-	return otto.Value{}
+	return otto.FalseValue()
 }
 
 func rugenvRugUserSetPermissions(call otto.FunctionCall) otto.Value {
@@ -275,29 +280,30 @@ func rugenvRugUserSetPermissions(call otto.FunctionCall) otto.Value {
 
 	perm := Duder.permissions.getByName(permName)
 	if perm.Value == -1 {
-		if result, e := Duder.jsvm.ToValue(fmt.Sprintf("invalid permission '%s'", permName)); e == nil {
-			return result
-		}
-		return otto.NullValue()
+		return stringResponse(fmt.Sprintf("invalid permission '%s'", permName))
 	}
 
 	if add {
 		if err := Duder.permissions.addToUser(guildID, userID, perm.Value); err != nil {
-			if result, e := Duder.jsvm.ToValue(err.Error()); e == nil {
-				return result
-			}
-			return otto.TrueValue()
+			return stringResponse(err.Error())
 		}
 	} else {
 		if err := Duder.permissions.removeFromUser(guildID, userID, perm.Value); err != nil {
-			if result, e := Duder.jsvm.ToValue(err.Error()); e == nil {
-				return result
-			}
-			return otto.TrueValue()
+			return stringResponse(err.Error())
 		}
 	}
 
-	return otto.NullValue()
+	return otto.TrueValue()
+}
+
+func rugenvRugUserSetNickname(call otto.FunctionCall) otto.Value {
+	guildID := call.Argument(0).String()
+	userID := call.Argument(1).String()
+	nickname := call.Argument(1).String()
+
+	Duder.session.GuildMemberNickname(guildID, userID, nickname)
+
+	return otto.TrueValue()
 }
 
 func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
@@ -315,10 +321,7 @@ func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 		}
 	}
 
-	if result, err := Duder.jsvm.ToValue(username); err == nil {
-		return result
-	}
-	return otto.NullValue()
+	return stringResponse(username)
 }
 
 /* DuderCommand */
