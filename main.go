@@ -76,13 +76,10 @@ func main() {
 
 // DuderBot struct describes the DuderBot
 type DuderBot struct {
-	Config      ConfigManager
-	Discord     DiscordManager
-	Permissions PermissionsManager
-	Rugs        RugManager
-	//session        *discordgo.Session
-	//me             *discordgo.User
-	//owner          *discordgo.User
+	Config         ConfigManager
+	Discord        DiscordManager
+	Permissions    PermissionsManager
+	Rugs           RugManager
 	debug          bool
 	shutdownSignal chan os.Signal
 }
@@ -169,8 +166,7 @@ func (duder *DuderBot) Shutdown(message *discordgo.MessageCreate) {
 
 // teardown gracefully releases all resources and saves data before Shutdown.
 func (duder *DuderBot) teardown() (err error) {
-	// close the Discord session
-
+	duder.Discord.teardown()
 	duder.Permissions.teardown()
 	duder.Rugs.teardown()
 
