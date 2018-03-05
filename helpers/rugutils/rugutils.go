@@ -60,8 +60,8 @@ func ConvertMentions(message *discordgo.MessageCreate) string {
 	return buffer.String()
 }
 
-// ConvertArgs description
-func ConvertArgs(args []string) string {
+// ConvertArguments description
+func ConvertArguments(args []string) string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("new Array( ")

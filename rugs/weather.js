@@ -2,7 +2,7 @@ var weather = new DuderRug("Weather", "Check the weather.");
 weather.storage = weather.loadStorage();
 
 weather.getUserLocation = function(userID) {
-	if (this.storage.users == undefined) {
+	if (this.storage.users === undefined) {
 		return false;
 	}
 	for (var i = 0; i < this.storage.users.length; i++) {
@@ -42,22 +42,23 @@ weather.padRight = function(text, len) {
 };
 
 weather.weatherIcons = {
-	"Sunny": ":sunny:",
+	Sunny: ":sunny:",
 	"Partly Cloudy": ":white_sun_cloud:",
 	"Scattered Showers": ":white_sun_rain_cloud:",
-	"Showers": ":cloud_rain:",
-	"Rain": ":cloud_rain:",
+	Showers: ":cloud_rain:",
+	Rain: ":cloud_rain:",
 	"Mostly Cloudy": ":cloud:",
 	"Mostly Sunny": ":white_sun_cloud:",
-	"Breezy": ":wind_blowing_face:",
+	Breezy: ":wind_blowing_face:",
 	"Scattered Thunderstorms": ":thunder_cloud_rain:",
-	"Thunderstorms": ":thunder_cloud_rain:",
-	"Snow": ":cloud_snow:"
+	Thunderstorms: ":thunder_cloud_rain:",
+	Snow: ":cloud_snow:"
 };
 
 weather.addCommand("weather", function(cmd) {
 	var citystate = "";
-	
+	var saveLocation = false;
+
 	if (cmd.args.length < 2) {
 		var location = this.getUserLocation(cmd.author.id);
 		if (location === false) {
@@ -69,6 +70,7 @@ weather.addCommand("weather", function(cmd) {
 		for (var i = 1; i < cmd.args.length; i++) {
 			citystate += cmd.args[i] + " ";
 		}
+		saveLocation = true;
 	}
 
 	var yql = encodeURI(
@@ -90,36 +92,47 @@ weather.addCommand("weather", function(cmd) {
 	var forecast = json.query.results.channel.item.forecast;
 	var title = json.query.results.channel.title.substring(17);
 
-	var j = '{' +
-			'"color": 3447003,' +
-			'"title": "3 Day Forecast",' + 
-			'"description": "{0}",'.format(title) + 
-			'"fields":' +
-			'[';
+	var j =
+		"{" +
+		'"color": 3447003,' +
+		'"title": "3 Day Forecast",' +
+		'"description": "{0}",'.format(title) +
+		'"fields":' +
+		"[";
 
 	var count = 0;
 	for (var day in forecast) {
-		var date = forecast[day].date.substring(0,forecast[day].date.length - 5);
+		var date = forecast[day].date.substring(
+			0,
+			forecast[day].date.length - 5
+		);
 		var icon = forecast[day].text;
 		if (this.weatherIcons[icon] !== undefined) {
 			icon = this.weatherIcons[icon];
 		} else {
 			icon = ":question:";
 		}
-		j += '{' +
+		j +=
+			"{" +
 			'"name": "{0} {1}",'.format(icon, date) +
-			'"value": "*{0}*\\nLow: {1} High: {2}"'.format(forecast[day].text, forecast[day].low, forecast[day].high) +
-		'}';
+			'"value": "*{0}*\\nLow: {1} High: {2}"'.format(
+				forecast[day].text,
+				forecast[day].low,
+				forecast[day].high
+			) +
+			"}";
 		if (++count > 2) {
 			break;
 		} else {
-			j += ',';
+			j += ",";
 		}
 	}
-	j += ']';
+	j += "]";
 
-	j += '}';
+	j += "}";
 
-	this.setUserLocation(cmd.author.id, citystate);
-	cmd.replyToChannelEmbed(j);	
+	if (saveLocation) {
+		this.setUserLocation(cmd.author.id, citystate);
+	}
+	cmd.replyToChannelEmbed(j);
 });

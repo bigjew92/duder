@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -11,22 +10,20 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/foszor/duder/helpers/rugutils"
 	"github.com/robertkrimen/otto"
 )
 
 func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 	name := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 	name = strings.Replace(name, "main.", "__duder_", -1)
-	Duder.dprint("Binding", name)
-	Duder.jsvm.Set(name, f)
+	Duder.Log(LogChannel.Verbose, "[Rugs.BindRugFunction] Binding", name)
+	Duder.Rugs.VM.Set(name, f)
 	return name
 }
 
@@ -45,13 +42,10 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvGetAvatars),
 		bindRugFunction(rugenvUseAvatar),
 		bindRugFunction(rugenvStartTyping),
-		/* DuderPermission */
-		rugenvGetPermissionsDefinition(),
 		/* DuderUser */
 		bindRugFunction(rugenvRugUserGetIsOwner),
+		bindRugFunction(rugenvRugUserGetIsManager),
 		bindRugFunction(rugenvRugUserGetIsModerator),
-		bindRugFunction(rugenvRugUserGetPermissions),
-		bindRugFunction(rugenvRugUserSetPermissions),
 		bindRugFunction(rugenvRugUserSetNickname),
 		bindRugFunction(rugenvRugUserGetUsernameByID),
 		/* DuderCommand */
@@ -76,7 +70,7 @@ func createRugEnvironment() error {
 		/* Base64 */
 		bindRugFunction(rugenvBase64EncodeToString))
 
-	if _, err := Duder.jsvm.Run(env); err != nil {
+	if _, err := Duder.Rugs.VM.Run(env); err != nil {
 		//fmt.Print(env)
 		return errors.New(err.Error())
 	}
@@ -84,11 +78,12 @@ func createRugEnvironment() error {
 	return nil
 }
 
-func stringResponse(response string) otto.Value {
-	if result, e := Duder.jsvm.ToValue(response); e == nil {
-		return result
+// response description
+func response(value interface{}, defaultValue otto.Value) otto.Value {
+	if v, err := Duder.Rugs.VM.ToValue(value); err == nil {
+		return v
 	}
-	return otto.FalseValue()
+	return defaultValue
 }
 
 /* Duder */
@@ -97,110 +92,44 @@ func rugenvSetStatus(call otto.FunctionCall) otto.Value {
 	if len(status) == 0 {
 		status = ""
 	}
-	if err := Duder.session.UpdateStatus(0, status); err != nil {
-		Duder.dprint("[Duder.setStatus] Unable to set status:", err.Error())
-		return stringResponse(err.Error())
-	}
+	Duder.Discord.SetStatus(status)
+	Duder.Config.SetStatus(status)
 
 	return otto.TrueValue()
 }
 
 func rugenvSetAvatar(call otto.FunctionCall) otto.Value {
 	avatar := call.Argument(0).String()
-	if _, err := Duder.session.UserUpdate("", "", "", avatar, ""); err != nil {
-		Duder.dprint("[Duder.setAvatar] Unable to set avatar:", err.Error())
-		return otto.FalseValue()
+
+	if ok := Duder.Discord.SetAvatarByImage(avatar); ok {
+		return otto.TrueValue()
 	}
 
-	return otto.TrueValue()
+	return otto.FalseValue()
 }
 
 func rugenvSaveAvatar(call otto.FunctionCall) otto.Value {
 	filename := call.Argument(0).String()
-	if len(filename) == 0 {
-		return stringResponse("invalid filename")
-	}
-	baseURL := Duder.me.AvatarURL("256")
-	urlNoSize := baseURL[0 : len(baseURL)-9]
-	parts := strings.Split(urlNoSize, ".")
-	ext := "." + parts[len(parts)-1]
 
-	if !strings.HasSuffix(filename, ext) {
-		filename = fmt.Sprintf("%s%s", filename, ext)
-	}
-
-	req := http.Client{Timeout: time.Duration(5 * time.Second)}
-	resp, err := req.Get(baseURL)
-	if err != nil {
-		Duder.dprint("[Duder.saveAvatar] Failed to download current avatar:", err.Error())
-		return stringResponse("failed to download current avatar")
-	}
-	defer resp.Body.Close()
-
-	if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
-		os.Mkdir(Duder.avatarPath, 0777)
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		Duder.dprint("[Duder.saveAvatar] Unable to read response body:", err.Error())
-		return stringResponse("unable to read downloaded file")
-	}
-	if err = ioutil.WriteFile(fmt.Sprintf("%s/%s", Duder.avatarPath, filename), data, 0644); err != nil {
-		Duder.dprint("[Duder.saveAvatar] Unable to save downloaded file:", err.Error())
-		return stringResponse("unable to save downloaded file")
+	if err := Duder.Discord.SaveAvatar(filename); err != nil {
+		return response(err.Error(), otto.FalseValue())
 	}
 
 	return otto.TrueValue()
 }
 
 func rugenvGetAvatars(call otto.FunctionCall) otto.Value {
-	if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
-		os.Mkdir(Duder.avatarPath, 0777)
-	}
-
-	avatars := []string{}
-	files, _ := ioutil.ReadDir(Duder.avatarPath)
-	for _, f := range files {
-		// ignore directories and non-image files
-		if f.IsDir() || (!strings.HasSuffix(f.Name(), ".png") && !strings.HasSuffix(f.Name(), ".jpg") && !strings.HasSuffix(f.Name(), ".jpeg")) {
-			continue
-		}
-		avatars = append(avatars, f.Name())
-	}
-
-	if result, err := Duder.jsvm.ToValue(avatars); err == nil {
-		return result
-	}
-
-	return otto.FalseValue()
+	return response(Duder.Discord.Avatars(), otto.FalseValue())
 }
 
 func rugenvUseAvatar(call otto.FunctionCall) otto.Value {
 	filename := call.Argument(0).String()
-	if len(filename) == 0 {
-		return stringResponse("empty filename")
-	} else if _, err := os.Stat(Duder.avatarPath); os.IsNotExist(err) {
-		return stringResponse("invalid avatar path")
+
+	if err := Duder.Discord.SetAvatarByFile(filename); err != nil {
+		return response(err.Error(), otto.FalseValue())
 	}
 
-	filePath := fmt.Sprintf("%s/%s", Duder.avatarPath, filename)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return stringResponse("invalid filename")
-	}
-
-	if bytes, err := ioutil.ReadFile(filePath); err == nil {
-		base64 := base64.StdEncoding.EncodeToString(bytes)
-		avatar := fmt.Sprintf("data:%s;base64,%s", http.DetectContentType(bytes), base64)
-		_, err = Duder.session.UserUpdate("", "", "", avatar, "")
-		if err != nil {
-			Duder.dprint("[Duder.useAvatar] Unable to update avatar:", err.Error())
-			return stringResponse("unable to update avatar")
-		}
-		return otto.TrueValue()
-	}
-
-	return otto.FalseValue()
+	return otto.TrueValue()
 }
 
 func rugenvStartTyping(call otto.FunctionCall) otto.Value {
@@ -208,92 +137,30 @@ func rugenvStartTyping(call otto.FunctionCall) otto.Value {
 	if len(channelID) == 0 {
 		return otto.FalseValue()
 	}
-	if err := Duder.session.ChannelTyping(channelID); err != nil {
-		Duder.dprint("[Duder.startTyping] Unable to start typing in channel", channelID, ":", err.Error())
-		return otto.FalseValue()
-	}
-	return otto.TrueValue()
-}
 
-/* DuderPermission */
-func rugenvGetPermissionsDefinition() string {
-	var buffer bytes.Buffer
-
-	buffer.WriteString("{")
-	first := true
-	for _, p := range permissionDefinitions {
-		if !first {
-			buffer.WriteString(", ")
-		}
-		buffer.WriteString(fmt.Sprintf("'%s': '%v'", p.Names[0], p.Value))
-		first = false
-	}
-	buffer.WriteString("}")
-
-	return buffer.String()
+	ok := Duder.Discord.StartTyping(channelID)
+	return response(ok, otto.FalseValue())
 }
 
 /* DuderUser */
 func rugenvRugUserGetIsOwner(call otto.FunctionCall) otto.Value {
+	userID := call.Argument(0).String()
+
+	return response((userID == Duder.Config.OwnerID()), otto.FalseValue())
+}
+
+func rugenvRugUserGetIsManager(call otto.FunctionCall) otto.Value {
 	guildID := call.Argument(0).String()
 	userID := call.Argument(1).String()
 
-	if userID == Duder.config.OwnerID {
-		return otto.TrueValue()
-	} else if Duder.permissions.isOwner(guildID, userID) {
-		return otto.TrueValue()
-	}
-
-	return otto.FalseValue()
+	return response(Duder.Permissions.IsUserManager(guildID, userID), otto.FalseValue())
 }
 
 func rugenvRugUserGetIsModerator(call otto.FunctionCall) otto.Value {
 	guildID := call.Argument(0).String()
 	userID := call.Argument(1).String()
 
-	if userID == Duder.config.OwnerID {
-		return otto.TrueValue()
-	} else if Duder.permissions.isModerator(guildID, userID) {
-		return otto.TrueValue()
-	}
-
-	return otto.FalseValue()
-}
-
-func rugenvRugUserGetPermissions(call otto.FunctionCall) otto.Value {
-	guildID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-	perms := Duder.permissions.getAll(guildID, userID)
-
-	if result, err := Duder.jsvm.Run(rugutils.ConvertUserPermission(perms)); err == nil {
-		return result
-	}
-
-	return otto.FalseValue()
-}
-
-func rugenvRugUserSetPermissions(call otto.FunctionCall) otto.Value {
-	guildID := call.Argument(0).String()
-	userID := call.Argument(1).String()
-	permName := call.Argument(2).String()
-	add, _ := call.Argument(3).ToBoolean()
-
-	perm := Duder.permissions.getByName(permName)
-	if perm.Value == -1 {
-		return stringResponse(fmt.Sprintf("invalid permission '%s'", permName))
-	}
-
-	if add {
-		if err := Duder.permissions.addToUser(guildID, userID, perm.Value); err != nil {
-			return stringResponse(err.Error())
-		}
-	} else {
-		if err := Duder.permissions.removeFromUser(guildID, userID, perm.Value); err != nil {
-			return stringResponse(err.Error())
-		}
-	}
-
-	return otto.TrueValue()
+	return response(Duder.Permissions.IsUserModerator(guildID, userID), otto.FalseValue())
 }
 
 func rugenvRugUserSetNickname(call otto.FunctionCall) otto.Value {
@@ -301,7 +168,7 @@ func rugenvRugUserSetNickname(call otto.FunctionCall) otto.Value {
 	userID := call.Argument(1).String()
 	nickname := call.Argument(1).String()
 
-	Duder.session.GuildMemberNickname(guildID, userID, nickname)
+	Duder.Discord.SetMemberNickname(guildID, userID, nickname)
 
 	return otto.TrueValue()
 }
@@ -310,18 +177,7 @@ func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 	guildID := call.Argument(0).String()
 	userID := call.Argument(1).String()
 
-	username := "Unknown"
-
-	if guild, err := Duder.session.Guild(guildID); err == nil {
-		for _, member := range guild.Members {
-			if member.User.ID == userID {
-				username = member.User.Username
-				break
-			}
-		}
-	}
-
-	return stringResponse(username)
+	return response(Duder.Discord.MemberUsername(guildID, userID), otto.FalseValue())
 }
 
 /* DuderCommand */
@@ -329,7 +185,8 @@ func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	content := call.Argument(1).String()
 
-	Duder.session.ChannelMessageSend(channelID, content)
+	//Duder.session.ChannelMessageSend(channelID, content)
+	Duder.Discord.SendMessageToChannel(channelID, content)
 
 	return otto.TrueValue()
 }
@@ -337,13 +194,13 @@ func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 func rugenvRugCommandReplyToChannelEmbed(call otto.FunctionCall) otto.Value {
 	// https://godoc.org/github.com/bwmarrin/discordgo#MessageEmbed
 	channelID := call.Argument(0).String()
-	content := call.Argument(1).String()
+	data := call.Argument(1).String()
 
-	embed := new(discordgo.MessageEmbed)
-	if err := json.Unmarshal([]byte(content), &embed); err != nil {
-		Duder.dprint("[cmd.replyToChannelEmbed] Failed to create embed", err.Error())
+	content := new(discordgo.MessageEmbed)
+	if err := json.Unmarshal([]byte(data), &content); err != nil {
+		Duder.Log(LogChannel.Verbose, "[cmd.replyToChannelEmbed] Failed to create embed", err.Error())
 	} else {
-		Duder.session.ChannelMessageSendEmbed(channelID, embed)
+		Duder.Discord.SendEmbedToChannel(channelID, content)
 	}
 
 	return otto.TrueValue()
@@ -357,9 +214,9 @@ func rugenvRugCommandReplyToAuthor(call otto.FunctionCall) otto.Value {
 	mention, _ := call.Argument(4).ToBoolean()
 
 	if mention {
-		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("<@%s> %s", authorID, content))
+		Duder.Discord.SendMessageToChannel(channelID, fmt.Sprintf("<@%s> %s", authorID, content))
 	} else {
-		Duder.session.ChannelMessageSend(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
+		Duder.Discord.SendMessageToChannel(channelID, fmt.Sprintf("%s, %s", authorUsername, content))
 	}
 
 	return otto.TrueValue()
@@ -369,9 +226,9 @@ func rugenvRugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
 	messageID := call.Argument(1).String()
 
-	Duder.session.ChannelMessageDelete(channelID, messageID)
+	Duder.Discord.DeleteChannelMessage(channelID, messageID)
 
-	return otto.Value{}
+	return otto.TrueValue()
 }
 
 /* DuderRug */
@@ -380,38 +237,23 @@ func rugenvRugCreate(call otto.FunctionCall) otto.Value {
 	name := call.Argument(1).String()
 	description := call.Argument(2).String()
 
-	rug := Rug{}
-	rug.name = name
-	rug.description = description
-	rug.commands = map[string]rugCommand{}
-	rug.object = rugObj
+	Duder.Rugs.CreateRug(rugObj, name, description)
 
-	addRug(rug)
-
-	Duder.dprintf("Created Rug '%v'", name)
-
-	return otto.Value{}
+	return otto.TrueValue()
 }
 
 func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
+	trigger := strings.TrimSpace(call.Argument(1).String())
+	exec := call.Argument(2)
 
 	// validate the trigger
-	trigger := strings.TrimSpace(call.Argument(1).String())
 	if len(trigger) == 0 {
-		Duder.wprintf("[rug.addCommand] Unable to add command to Rug '%v', trigger is empty", rugObj)
 		return otto.FalseValue()
 	}
 
-	// add to parent rug
-	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		rugCmd := rugCommand{}
-		rugCmd.trigger = trigger
-		rugCmd.exec = call.Argument(2)
-		rug.commands[trigger] = rugCmd
-		Duder.dprintf("Added command '%v' to Rug '%v'", trigger, rug.name)
-	} else {
-		Duder.wprintf("Unable to add command to Rug '%v'", rugObj)
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.AddCommand(trigger, exec)
 	}
 
 	return otto.TrueValue()
@@ -420,58 +262,33 @@ func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 func rugenvRugLoadStorage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 
-	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		path := getRugStorageFile(rug)
-
-		// check if the file exists
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			Duder.dprintf("[rug.loadStorage] Storage file for '%v' not found; creating new one...", rug.name)
-
-			// create the storage file
-			if e := ioutil.WriteFile(path, []byte("{}"), 0644); e != nil {
-				Duder.dprint("[rug.loadStorage] Unable to create storage file", path)
-				return otto.FalseValue()
-			}
-			Duder.dprintf("[rug.loadStorage] Storage file for '%v' created", rug.name)
-			if result, e := Duder.jsvm.ToValue("{}"); e == nil {
-				return result
-			}
-		} else {
-			var bytes []byte
-			if bytes, err = ioutil.ReadFile(path); err != nil {
-				Duder.dprint("[rug.loadStorage] Unable to read storage file", path)
-				return otto.FalseValue()
-			}
-
-			if result, e := Duder.jsvm.ToValue(string(bytes)); e == nil {
-				return result
-			}
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		storage, ok := rug.LoadStorage()
+		if ok {
+			return response(storage, otto.FalseValue())
 		}
-		return otto.FalseValue()
+
 	}
+
 	return otto.FalseValue()
 }
 
 func rugenvRugSaveStorage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 	data := call.Argument(1).String()
-	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		path := getRugStorageFile(rug)
-		if err := ioutil.WriteFile(path, []byte(data), 0644); err != nil {
-			Duder.dprint("[rug.saveStorage] Unable to save rug storage", err.Error())
-			return otto.FalseValue()
-		}
-		Duder.dprint("[rug.saveStorage] Unable to save rug storage")
-		return otto.TrueValue()
+
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		return response(rug.SaveStorage(data), otto.FalseValue())
 	}
+
 	return otto.FalseValue()
 }
 
 func rugenvRugDPrint(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 	msg := call.Argument(1).String()
-	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		Duder.dprintf("[Rug:%v(%v)] %v", rug.name, rug.file, msg)
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.DPrint(msg)
 		return otto.TrueValue()
 	}
 	return otto.FalseValue()
@@ -480,8 +297,8 @@ func rugenvRugDPrint(call otto.FunctionCall) otto.Value {
 func rugenvRugWPrint(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 	msg := call.Argument(1).String()
-	if rug, ok := rugMap[fmt.Sprintf("%v", rugObj)]; ok {
-		Duder.wprintf("[Rug:%v(%v)] %v", rug.name, rug.file, msg)
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.WPrint(msg)
 		return otto.TrueValue()
 	}
 	return otto.FalseValue()
@@ -492,11 +309,7 @@ func rugenvStringDecodeHTML(call otto.FunctionCall) otto.Value {
 	text := call.Argument(0).String()
 	text = html.UnescapeString(text)
 
-	if result, err := Duder.jsvm.ToValue(text); err == nil {
-		return result
-	}
-
-	return otto.NullValue()
+	return response(text, otto.FalseValue())
 }
 
 /* HTTP */
@@ -512,7 +325,7 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	for k, v := range headers.(map[string]interface{}) {
 		if value, ok := v.(string); ok {
 			req.Header.Add(k, value)
-			Duder.dprintf("[http.Get] Adding header %s : %s", k, value)
+			Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Adding header %s : %s", k, value)
 		}
 	}
 
@@ -528,18 +341,11 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	}
 
 	if stringResult {
-		if result, err := Duder.jsvm.ToValue(string(body)); err == nil {
-			Duder.dprint("[http.Get] Returning string")
-			return result
-		}
-	} else {
-		if result, err := Duder.jsvm.ToValue(body); err == nil {
-			Duder.dprint("[http.Get] Returning byte array")
-			return result
-		}
+		Duder.Log(LogChannel.Verbose, "[HTTP.Get] Returning string")
+		return response(string(body), otto.FalseValue())
 	}
-
-	return otto.FalseValue()
+	Duder.Log(LogChannel.Verbose, "[HTTP.Get] Returning byte array")
+	return response(body, otto.FalseValue())
 }
 
 func rugenvHTTPPost(call otto.FunctionCall) otto.Value {
@@ -571,7 +377,7 @@ func rugenvHTTPDetectContentType(call otto.FunctionCall) otto.Value {
 	}
 
 	contentType := http.DetectContentType(data)
-	if result, err := Duder.jsvm.ToValue(contentType); err == nil {
+	if result, err := Duder.Rugs.VM.ToValue(contentType); err == nil {
 		return result
 	}
 	return otto.FalseValue()
@@ -580,7 +386,7 @@ func rugenvHTTPDetectContentType(call otto.FunctionCall) otto.Value {
 func rugenvHTTPParseURL(call otto.FunctionCall) otto.Value {
 	urlString := call.Argument(0).String()
 	if u, err := url.Parse(urlString); err == nil {
-		if result, err := Duder.jsvm.ToValue(u.String()); err == nil {
+		if result, err := Duder.Rugs.VM.ToValue(u.String()); err == nil {
 			return result
 		}
 	}
@@ -596,7 +402,7 @@ func rugenvBase64EncodeToString(call otto.FunctionCall) otto.Value {
 	}
 
 	str := base64.StdEncoding.EncodeToString(data)
-	if result, err := Duder.jsvm.ToValue(str); err == nil {
+	if result, err := Duder.Rugs.VM.ToValue(str); err == nil {
 		return result
 	}
 	return otto.FalseValue()

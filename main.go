@@ -1,54 +1,37 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/fatih/color"
-	"github.com/foszor/duder/helpers/rugutils"
-	"github.com/go-fsnotify/fsnotify"
-	"github.com/robertkrimen/otto"
 )
 
 // VERSION contains the current version
-const VERSION string = "0.0.1"
+const VERSION string = "1.0-a1"
 
-// instance struct describes the bot
-type instance struct {
-	configPath      string
-	config          config
-	session         *discordgo.Session
-	me              *discordgo.User
-	owner           *discordgo.User
-	debug           bool
-	shutdownSignal  chan os.Signal
-	permissionsPath string
-	permissions     permissions
-	hotReloading    bool
-	rugWatcher      *fsnotify.Watcher
-	avatarPath      string
-	jsvm            *otto.Otto
+// LogChannel description
+var LogChannel = struct {
+	General uint8
+	Warning uint8
+	Verbose uint8
+}{
+	General: 0,
+	Warning: 1,
+	Verbose: 2,
 }
 
-// Duder contains the bot instance
-var Duder = &instance{}
-
 func init() {
-	flag.StringVar(&Duder.configPath, "config", "config.toml", "Location of the configuration file, if not found it will be generated (default config.toml)")
-	flag.StringVar(&Duder.permissionsPath, "permissions", "permissions.json", "Location of the permissions file (default permissions.json)")
-	flag.BoolVar(&Duder.debug, "debug", true, "Enable debug mode")
-	flag.BoolVar(&Duder.hotReloading, "hotload", true, "Enable or disable rug hot reloading")
-	flag.StringVar(&Duder.avatarPath, "avatarPath", "avatars", "Location of avatars (default avatars)")
-	flag.Parse()
+	Duder.Logf(LogChannel.General, "Duder version %s", VERSION)
 
-	log.Printf("Duder version %s", VERSION)
+	flag.BoolVar(&Duder.debug, "debug", true, "Enable debug mode")
+	flag.StringVar(&Duder.Config.path, "config", "config.json", "Configuration file (default config.json)")
+	flag.Parse()
 }
 
 func main() {
@@ -56,67 +39,26 @@ func main() {
 	Duder.shutdownSignal = make(chan os.Signal, 1)
 
 	// load the configuration file
-	if err := loadConfig(Duder.configPath); err != nil {
-		log.Fatal("Failed to load configuration file, ", err)
+	if err := Duder.Config.Load(); err != nil {
+		log.Fatal("Failed to load configuration file; ", err)
 	}
 
 	// load the permissions file
-	if err := loadPermissions(Duder.permissionsPath); err != nil {
-		log.Fatal("Failed to load permissions file, ", err)
+	if err := Duder.Permissions.Load(); err != nil {
+		log.Fatal("Failed to load permissions; ", err)
 	}
 
 	// load the rugs
-	if err := loadRugs(Duder.config.RugPath); err != nil {
-		log.Fatal("Failed to load rugs, ", err)
+	if err := Duder.Rugs.Load(); err != nil {
+		log.Fatal("Failed to load rugs;", err)
 	}
 
-	// observe rugs for hot reloading
-	if Duder.hotReloading {
-		if rugHotloader, err := observeRugs(Duder.config.RugPath); err != nil {
-			Duder.dprint("Failed to monitor rugs for hot reloading, ", err)
-		} else {
-			Duder.rugWatcher = rugHotloader
-		}
+	// connect to Discord
+	if err := Duder.Discord.Connect(); err != nil {
+		log.Fatal("Failed to connect to Discord;", err)
 	}
 
-	// create the Discord session
-	log.Printf("Creating Discord session with token '%v'", Duder.config.BotToken)
-	session, err := discordgo.New(Duder.config.BotToken)
-	if err != nil {
-		log.Fatal("Error creating discord session, ", err)
-	}
-	Duder.session = session
-
-	// obtain bot account details
-	log.Println("Obtaining bot account details")
-	me, err := Duder.session.User("@me")
-	if err != nil {
-		log.Fatal("Error obtaining bot account details, ", err)
-	}
-	Duder.me = me
-	log.Println("> Bot Client ID:", Duder.me.ID)
-
-	// obtain owner account details
-	log.Println("Obtaining owner account details")
-	owner, err := Duder.session.User(Duder.config.OwnerID)
-	if err != nil {
-		log.Fatal("Error obtaining owner account details, ", err)
-	}
-	Duder.owner = owner
-	log.Println("> Owner Client ID:", Duder.owner.ID)
-
-	// register callback for messageCreate
-	Duder.session.AddHandler(onMessageCreate)
-
-	// open the Discord connection
-	log.Println("Opening Discord connection")
-	err = Duder.session.Open()
-	if err != nil {
-		log.Fatal("Error opening discord connection,", err)
-	}
-
-	Duder.setStatus(Duder.config.Status)
-	log.Println("Bot is now running.")
+	Duder.Log(LogChannel.General, "Bot is now running.")
 
 	// register bot sg.shutdown channel to receive shutdown signals.
 	signal.Notify(Duder.shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
@@ -124,7 +66,7 @@ func main() {
 	// wait for shutdown signal
 	<-Duder.shutdownSignal
 
-	log.Println("termination signal received; shutting down...")
+	Duder.Log(LogChannel.General, "termination signal received; shutting down...")
 
 	// gracefully shut down the bot
 	Duder.teardown()
@@ -132,151 +74,105 @@ func main() {
 	return
 }
 
-// dprint calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Print.
-func (duder *instance) dprint(v ...interface{}) {
-	if duder.debug {
+// DuderBot struct describes the DuderBot
+type DuderBot struct {
+	Config      ConfigManager
+	Discord     DiscordManager
+	Permissions PermissionsManager
+	Rugs        RugManager
+	//session        *discordgo.Session
+	//me             *discordgo.User
+	//owner          *discordgo.User
+	debug          bool
+	shutdownSignal chan os.Signal
+}
+
+// Duder contains the bot instance
+var Duder = &DuderBot{}
+
+// Log description
+func (duder *DuderBot) Log(channel uint8, v ...interface{}) {
+	if channel == LogChannel.Verbose && !duder.debug {
+		return
+	}
+
+	switch channel {
+	case LogChannel.Verbose:
 		c := color.New(color.FgYellow)
 		c.Println(v...)
-	}
-}
-
-// dprintf calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
-func (duder *instance) dprintf(format string, v ...interface{}) {
-	if duder.debug {
-		c := color.New(color.FgYellow)
-		c.Printf(format, v...)
-		fmt.Println("")
-	}
-}
-
-// wprint calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
-func (duder *instance) wprint(v ...interface{}) {
-	if duder.debug {
+	case LogChannel.Warning:
 		c := color.New(color.FgHiYellow)
 		c.Println(v...)
+	default:
+		fmt.Println(v...)
 	}
 }
 
-// wprintf calls Output to print to the standard logger when debug mode is enabled. Arguments are handled in the manner of fmt.Printf.
-func (duder *instance) wprintf(format string, v ...interface{}) {
-	if duder.debug {
+// Logf description
+func (duder *DuderBot) Logf(channel uint8, format string, v ...interface{}) {
+	if channel == LogChannel.Verbose && !duder.debug {
+		return
+	}
+
+	msg := fmt.Sprintf(format, v...)
+
+	switch channel {
+	case LogChannel.Verbose:
+		c := color.New(color.FgYellow)
+		c.Printf(format, v...)
+		c.Println("")
+	case LogChannel.Warning:
 		c := color.New(color.FgHiYellow)
 		c.Printf(format, v...)
-		fmt.Println("")
+		c.Println("")
+	default:
+		fmt.Println(msg)
 	}
 }
 
-// shutdown sends Shutdown signal to the bot's Shutdown channel.
-func (duder *instance) shutdown() {
+// GetUserInput description
+func (duder *DuderBot) GetUserInput(prompt string, required bool) string {
+	var input string
+	for {
+		fmt.Print(fmt.Sprintf("%s: ", prompt))
+		fmt.Scanln(&input)
+		if len(input) > 0 || !required {
+			return input
+		}
+	}
+}
+
+// Update description
+func (duder *DuderBot) Update(message *discordgo.MessageCreate) {
+	if duder.Config.OwnerID() == message.Author.ID {
+		if len(duder.Config.UpdateExec()) == 0 {
+			duder.Discord.SendMessageToChannel(message.ChannelID, fmt.Sprintf("%s, the update script isn't defined", message.Author.Username))
+		}
+	} else {
+		duder.Discord.SendMessageToChannel(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
+	}
+}
+
+// Shutdown sends Shutdown signal to the bot's Shutdown channel.
+func (duder *DuderBot) Shutdown(message *discordgo.MessageCreate) {
+	if duder.Config.OwnerID() != message.Author.ID {
+		duder.Discord.SendMessageToChannel(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
+		return
+	}
+
+	duder.Discord.SendMessageToChannel(message.ChannelID, "Goodbye.")
+
+	duder.teardown()
+
 	duder.shutdownSignal <- os.Interrupt
 }
 
 // teardown gracefully releases all resources and saves data before Shutdown.
-func (duder *instance) teardown() (err error) {
-	// Perform teardown for commands.
-	//sg.rootCommand.teardown(sg)
+func (duder *DuderBot) teardown() (err error) {
+	// close the Discord session
 
-	// close discord session.
-	err = duder.session.Close()
-	if err != nil {
-		return
-	}
-
-	if duder.rugWatcher != nil {
-		defer duder.rugWatcher.Close()
-	}
+	duder.Permissions.teardown()
+	duder.Rugs.teardown()
 
 	return
-}
-
-// sendMessageToChannel description
-func (duder *instance) sendMessageToChannel(channelID string, content string) {
-	duder.session.ChannelMessageSend(channelID, content)
-}
-
-// setStatus description
-func (duder *instance) setStatus(status string) error {
-	if err := duder.session.UpdateStatus(0, status); err != nil {
-		return errors.New("unable to set status")
-	}
-	return nil
-}
-
-func getMessageGuild(session *discordgo.Session, message *discordgo.MessageCreate) (*discordgo.Guild, error) {
-	channel, err := getMessageChannel(session, message)
-	if err != nil {
-		return nil, err
-	}
-	guild, err := session.Guild(channel.GuildID)
-	if err != nil {
-		return nil, errors.New("Unable to get guild")
-	}
-
-	return guild, nil
-}
-
-func getMessageChannel(session *discordgo.Session, message *discordgo.MessageCreate) (*discordgo.Channel, error) {
-	channel, err := session.Channel(message.ChannelID)
-	if err != nil {
-		return nil, errors.New("Unable to get channel")
-	}
-
-	return channel, nil
-}
-
-// onMessageCreate description
-func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
-	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.config.Prefix)) {
-		Duder.dprint("Proccessing command", message.Content)
-		runCommand(session, message)
-	}
-}
-
-// runCommand description
-func runCommand(session *discordgo.Session, message *discordgo.MessageCreate) {
-	// strip the command prefix from the message content
-	content := message.Content[len(Duder.config.Prefix)+1 : len(message.Content)]
-	content = strings.TrimSpace(content)
-
-	// get the root command
-	args := rugutils.ParseArguments(content)
-	if len(args) == 0 {
-		return
-	}
-	cmd := strings.ToLower(args[0])
-	Duder.dprintf("Root command '%s'", cmd)
-
-	// hardcoded commands
-	switch cmd {
-	case "reload":
-		if Duder.config.OwnerID == message.Author.ID {
-			loadRugs(Duder.config.RugPath)
-			if len(rugLoadErrors) > 0 {
-				session.ChannelMessageSend(message.ChannelID, ":octagonal_sign: Rugs reloaded with errors.")
-			} else {
-				session.ChannelMessageSend(message.ChannelID, ":ok_hand: Rugs successfully reloaded.")
-			}
-		} else {
-			session.ChannelMessageSend(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
-		}
-		return
-	case "shutdown":
-		if Duder.config.OwnerID == message.Author.ID {
-			session.ChannelMessageSend(message.ChannelID, "Goodbye.")
-			Duder.shutdown()
-		} else {
-			session.ChannelMessageSend(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
-		}
-		return
-	}
-
-	// check each rug to find the matching command
-	for _, rug := range rugMap {
-		for _, rugCmd := range rug.commands {
-			if rugCmd.trigger == cmd {
-				execRugCommand(rug, rugCmd, session, message, args)
-				return
-			}
-		}
-	}
 }

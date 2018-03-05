@@ -19,49 +19,14 @@ Duder.startTyping = function(channelID) {
 	return __BIND__(channelID);
 };
 
-// Define DuderPermission class
-function DuderPermission() {}
-DuderPermission.permissions = __BIND__;
-DuderPermission.getName = function(value) {
-	value = value.toString();
-	for (var name in DuderPermission.permissions) {
-		if (DuderPermission.permissions[name] === value) {
-			return name;
-		}
-	}
-
-	return "invalid";
-};
-DuderPermission.getNames = function(values) {
-	var names = "";
-	for (var value in values) {
-		if (typeof values[value] !== 'string') {
-			continue;
-		}
-		if (names.length > 0) {
-			names += ", ";
-		}
-		names += DuderPermission.getName(values[value]);
-	}
-
-	return names.length > 0 ? names : "none";
-};
-
 // Define DuderUser class
-function DuderUser(channelID, id, username) {
+function DuderUser(guildID, id, username) {
 	this.id = id;
 	this.username = username;
-	this.isOwner = __BIND__(channelID, id);
-	this.isModerator = __BIND__(channelID, id);
+	this.isOwner = __BIND__(id);
+	this.isManager = __BIND__(guildID, id);
+	this.isModerator = __BIND__(guildID, id);
 }
-DuderUser.prototype.getPermissions = function(guildID) {
-	return __BIND__(guildID, this.id);
-};
-DuderUser.prototype.setPermissions = function(guildID, permission, add) {
-	// ensure add is boolean
-	add = add === true;
-	return __BIND__(guildID, this.id, permission, add);
-};
 DuderUser.prototype.setNickname = function(guildID, nickname) {
 	return __BIND__(guildID, this.id, nickname);
 };

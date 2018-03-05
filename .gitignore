@@ -64,3 +64,5 @@ permissions.json
 config.toml
 rugs/xbl.json
 dump.json
+config.json
+duder.code-workspace

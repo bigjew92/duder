@@ -1,102 +1,166 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
-
-	"github.com/BurntSushi/toml"
 )
 
-type config struct {
-	BotToken string `toml:"bot_token"`
-	OwnerID  string `toml:"owner_ID"`
-	Status   string `toml:"status"`
-	RugPath  string `toml:"rug_path"`
-	Prefix   string `toml:"prefix"`
+func init() {
+	Duder.Config = ConfigManager{}
 }
 
-const defaultConfig = `# Duder configuration file
+// Config description
+type Config struct {
+	AvatarsPath     string `json:"avatarsPath"`
+	BotToken        string `json:"botToken"`
+	CommandPrefix   string `json:"commandPrefix"`
+	OwnerID         string `json:"ownerID"`
+	PermissionsFile string `json:"permissionsFile"`
+	RugsPath        string `json:"rugsPath"`
+	Status          string `json:"status"`
+	UpdateExec      string `json:"updateExec"`
+}
 
-# Discord app bot token
-bot_token = "BOT_TOKEN"
+// ConfigManager description
+type ConfigManager struct {
+	path string
+	data Config
+}
 
-# Discord client ID for bot owner
-owner_ID = "OWNER_ID"
-
-# Discord status for bot
-status = "with Maude"
-
-# Path where Rugs are located
-rug_path = "rugs"
-
-# Message prefix to indicate it's a bot command
-prefix = "!d"
-`
-
-// loadConfig loads the configuration file
-func loadConfig(path string) error {
+// Load loads the configuration file
+func (manager *ConfigManager) Load() error {
 	// validate the config file
-	path = strings.TrimSpace(path)
-	if len(path) == 0 {
-		return errors.New("Configuration file isn't defined")
+	manager.path = strings.TrimSpace(manager.path)
+	if len(manager.path) == 0 {
+		return errors.New("configuration file isn't defined")
 	}
-	log.Printf("Loading configuration file '%s'", path)
+	Duder.Logf(LogChannel.General, "Loading configuration file '%s'", manager.path)
+
+	var config Config
 
 	// check if the file exists
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Print("Configuration file not found; creating new one...\r\n")
+	if _, err := os.Stat(manager.path); os.IsNotExist(err) {
+		Duder.Log(LogChannel.General, "Configuration file not found; creating new one...")
 
-		// prompt for bot token
-		botToken := getInput("Bot token", true)
-		// prompt for owner ID
-		clientID := getInput("Owner ID", true)
-
-		// populate the configuration data
-		configData := strings.Replace(defaultConfig, "BOT_TOKEN", botToken, 1)
-		configData = strings.Replace(configData, "OWNER_ID", clientID, 1)
-
-		// create the configuration file
-		if err := ioutil.WriteFile(path, []byte(configData), 0644); err != nil {
-			return errors.New(fmt.Sprint("Unable to create configuration file ", path, err.Error()))
+		// defaults
+		config = Config{
+			AvatarsPath:     "avatars",
+			CommandPrefix:   "!d",
+			PermissionsFile: "permissions.json",
+			RugsPath:        "rugs",
+			Status:          "with Maude",
+			UpdateExec:      "",
 		}
-		log.Printf("Created configuration file '%s'", path)
 
-		// load the configuration data
-		if _, err := toml.Decode(configData, &Duder.config); err != nil {
+		// required
+		config.BotToken = Duder.GetUserInput("Bot token", true)
+		config.OwnerID = Duder.GetUserInput("Owner ID", true)
+
+		manager.data = config
+
+		Duder.Logf(LogChannel.General, "Created configuration file '%s'", manager.path)
+
+		// save the default configuration
+		if err := manager.Save(); err != nil {
 			return err
 		}
 	} else {
-		// load the configuration file
-		if _, err := toml.DecodeFile(path, &Duder.config); err != nil {
-			return err
+		bytes, err := ioutil.ReadFile(manager.path)
+		if err != nil {
+			return fmt.Errorf("Unable to read configuration file '%s'", manager.path)
 		}
+
+		if err := json.Unmarshal(bytes, &config); err != nil {
+			return fmt.Errorf("Unable to load configuration file '%s'", manager.path)
+		}
+
+		manager.data = config
 	}
 
-	// validate the prefix
-	Duder.config.Prefix = strings.TrimSpace(Duder.config.Prefix)
-	if len(Duder.config.Prefix) == 0 {
-		return errors.New("'prefix' is undefined in configuration file")
-	}
-
-	// ensure the bot token has the 'Bot ' prefix
-	if !strings.HasPrefix(Duder.config.BotToken, "Bot ") {
-		Duder.config.BotToken = fmt.Sprintf("Bot %s", Duder.config.BotToken)
-	}
+	Duder.Log(LogChannel.Verbose, "Configuration file successfully loaded")
 
 	return nil
 }
 
-func getInput(prompt string, required bool) string {
-	var input string
-	for {
-		fmt.Print(fmt.Sprintf("%s: ", prompt))
-		fmt.Scanln(&input)
-		if len(input) > 0 || !required {
-			return input
-		}
+// Save description
+func (manager *ConfigManager) Save() error {
+	if len(manager.path) == 0 {
+		return errors.New("configuration file isn't defined")
 	}
+	Duder.Logf(LogChannel.General, "Saving configuration file '%s'", manager.path)
+
+	bytes, err := json.MarshalIndent(manager.data, "", "\t")
+	if err != nil {
+		return fmt.Errorf("unable to create configuration data; %s", err.Error())
+	}
+	if err := ioutil.WriteFile(manager.path, bytes, 0777); err != nil {
+		return fmt.Errorf("unable to save configuration file '%s'; %s", manager.path, err.Error())
+	}
+
+	Duder.Logf(LogChannel.Verbose, "Configuration file '%s' successfully saved", manager.path)
+
+	return nil
+}
+
+// AvatarPath description
+func (manager *ConfigManager) AvatarPath() string {
+	return manager.data.AvatarsPath
+}
+
+// BotToken description
+func (manager *ConfigManager) BotToken() string {
+	if !strings.HasPrefix(manager.data.BotToken, "Bot ") {
+		return fmt.Sprintf("Bot %s", manager.data.BotToken)
+	}
+	return manager.data.BotToken
+}
+
+// CommandPrefix description
+func (manager *ConfigManager) CommandPrefix() string {
+	return manager.data.CommandPrefix
+}
+
+// OwnerID description
+func (manager *ConfigManager) OwnerID() string {
+	return manager.data.OwnerID
+}
+
+// PermissionsFile description
+func (manager *ConfigManager) PermissionsFile() string {
+	return manager.data.PermissionsFile
+}
+
+// RugsPath description
+func (manager *ConfigManager) RugsPath() string {
+	return manager.data.RugsPath
+}
+
+// Status description
+func (manager *ConfigManager) Status() string {
+	return manager.data.Status
+}
+
+// SetStatus description
+func (manager *ConfigManager) SetStatus(status string) {
+	manager.data.Status = status
+	manager.Save()
+}
+
+// UpdateExec description
+func (manager *ConfigManager) UpdateExec() string {
+	return manager.data.UpdateExec
+}
+
+// SetUpdateExec description
+func (manager *ConfigManager) SetUpdateExec(exec string) {
+	manager.data.UpdateExec = exec
+	manager.Save()
+}
+
+// teardown description
+func (manager *ConfigManager) teardown() {
 }
