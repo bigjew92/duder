@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -148,6 +149,8 @@ func (duder *DuderBot) Update(message *discordgo.MessageCreate) {
 	} else {
 		duder.Discord.SendMessageToChannel(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
 	}
+
+	exec.Command(duder.Config.UpdateExec())
 }
 
 // Shutdown sends Shutdown signal to the bot's Shutdown channel.
