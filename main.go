@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -36,6 +37,23 @@ func init() {
 }
 
 func main() {
+	logFile := "duder.log"
+	if _, err := os.Stat(logFile); os.IsNotExist(err) {
+		if _, err := os.Create(logFile); err != nil {
+			log.Fatal("Failed to create log file; ", err)
+		}
+	}
+
+	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal("Failed to open log file; ", err)
+	}
+
+	logWriter := io.MultiWriter(os.Stdout, file)
+
+	log.SetOutput(logWriter)
+	log.SetFlags(log.Ldate | log.Ltime)
+
 	// intitialize shutdown channel.
 	Duder.shutdownSignal = make(chan os.Signal, 1)
 
@@ -96,13 +114,15 @@ func (duder *DuderBot) Log(channel uint8, v ...interface{}) {
 
 	switch channel {
 	case LogChannel.Verbose:
-		c := color.New(color.FgYellow)
-		c.Println(v...)
+		color.Set(color.FgYellow)
+		log.Println(v...)
+		color.Unset()
 	case LogChannel.Warning:
-		c := color.New(color.FgHiYellow)
-		c.Println(v...)
+		color.Set(color.FgHiYellow)
+		log.Println(v...)
+		color.Unset()
 	default:
-		fmt.Println(v...)
+		log.Print(v...)
 	}
 }
 
@@ -116,15 +136,15 @@ func (duder *DuderBot) Logf(channel uint8, format string, v ...interface{}) {
 
 	switch channel {
 	case LogChannel.Verbose:
-		c := color.New(color.FgYellow)
-		c.Printf(format, v...)
-		c.Println("")
+		color.Set(color.FgYellow)
+		log.Println(msg)
+		color.Unset()
 	case LogChannel.Warning:
-		c := color.New(color.FgHiYellow)
-		c.Printf(format, v...)
-		c.Println("")
+		color.Set(color.FgHiYellow)
+		log.Println(msg)
+		color.Unset()
 	default:
-		fmt.Println(msg)
+		log.Println(msg)
 	}
 }
 
