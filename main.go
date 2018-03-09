@@ -151,7 +151,12 @@ func (duder *DuderBot) Update(message *discordgo.MessageCreate) {
 	}
 
 	duder.Logf(LogChannel.General, "Running update command '%s'", duder.Config.UpdateExec())
-	exec.Command(duder.Config.UpdateExec())
+	output, err := exec.Command(duder.Config.UpdateExec()).CombinedOutput()
+	if err != nil {
+		duder.Logf(LogChannel.Warning, "Error running update command; %s", err.Error())
+	} else {
+		duder.Logf(LogChannel.General, "Update command exited with '%s'", string(output))
+	}
 }
 
 // Shutdown sends Shutdown signal to the bot's Shutdown channel.
