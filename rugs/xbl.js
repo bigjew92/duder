@@ -182,7 +182,7 @@ xbl.addCommand("xbl", function(cmd) {
 		);
 		this.dprint(url);
 		var content = HTTP.get(10, url, headers);
-		//this.print(content);
+		//this.dprint(content);
 		json = JSON.parse(content);
 		if (json.profileUsers === undefined) {
 			cmd.replyToAuthor(
@@ -264,11 +264,20 @@ xbl.addCommand("xbl", function(cmd) {
 				users.push(user.XUID);
 			}
 			if (users.length > 0) {
-				var url = "https://xbl.io/api/v2/[{0}]/presence".format(
+				var url = "https://xbl.io/api/v1/[{0}]/presence".format(
 					users.join(",")
 				);
+				//url = "https://xbl.io/api/v2/presence";
+				//url = encodeURI(url);
 				this.dprint(url);
 			}
+			var content = HTTP.get(10, url, headers);
+			if (content === undefined || content.length === 0) {
+				cmd.replyToAuthor("unable to retrieve presence");
+				return;
+			}
+			this.dprint(content);
+			//json = JSON.parse(content);
 		}
 	}
 });

@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -138,8 +140,24 @@ func (manager *DiscordManager) SendMessageToChannel(channelID string, content st
 }
 
 // SendEmbedToChannel description
-func (manager *DiscordManager) SendEmbedToChannel(channelID string, content *discordgo.MessageEmbed) {
-	manager.session.ChannelMessageSendEmbed(channelID, content)
+func (manager *DiscordManager) SendEmbedToChannel(channelID string, jsonData string) error {
+	// https://godoc.org/github.com/bwmarrin/discordgo#MessageEmbed
+
+	embed := new(discordgo.MessageEmbed)
+	if err := json.Unmarshal([]byte(jsonData), &embed); err != nil {
+		return err
+	}
+
+	manager.session.ChannelMessageSendEmbed(channelID, embed)
+
+	return nil
+}
+
+// SendFileToChannel description
+func (manager *DiscordManager) SendFileToChannel(channelID string, name string, reader io.Reader) {
+	//data := discordgo.MessageSend{}
+	//data.File = discordgo.File{}
+	//manager.session.ChannelFileSend(channelID)
 }
 
 // SetStatus description
@@ -294,7 +312,7 @@ func (manager *DiscordManager) runCommand(message *discordgo.MessageCreate) {
 	cmd := strings.ToLower(args[0])
 	Duder.Logf(LogChannel.Verbose, "Root command '%s'", cmd)
 
-	// hardcoded commands
+	// built in commands
 	switch cmd {
 	case "update":
 		Duder.Update(message)

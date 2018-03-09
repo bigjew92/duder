@@ -2,12 +2,10 @@ package main
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -15,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/robertkrimen/otto"
 )
 
@@ -53,6 +50,7 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvRugCommandReplyToChannelEmbed),
 		bindRugFunction(rugenvRugCommandReplyToAuthor),
 		bindRugFunction(rugenvRugCommandDeleteMessage),
+		bindRugFunction(rugenvRugCommandSendFile),
 		/* DuderRug */
 		bindRugFunction(rugenvRugCreate),
 		bindRugFunction(rugenvRugAddCommand),
@@ -192,15 +190,12 @@ func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 }
 
 func rugenvRugCommandReplyToChannelEmbed(call otto.FunctionCall) otto.Value {
-	// https://godoc.org/github.com/bwmarrin/discordgo#MessageEmbed
 	channelID := call.Argument(0).String()
-	data := call.Argument(1).String()
+	jsonData := call.Argument(1).String()
 
-	content := new(discordgo.MessageEmbed)
-	if err := json.Unmarshal([]byte(data), &content); err != nil {
+	if err := Duder.Discord.SendEmbedToChannel(channelID, jsonData); err != nil {
 		Duder.Log(LogChannel.Verbose, "[cmd.replyToChannelEmbed] Failed to create embed", err.Error())
-	} else {
-		Duder.Discord.SendEmbedToChannel(channelID, content)
+		return otto.FalseValue()
 	}
 
 	return otto.TrueValue()
@@ -227,6 +222,14 @@ func rugenvRugCommandDeleteMessage(call otto.FunctionCall) otto.Value {
 	messageID := call.Argument(1).String()
 
 	Duder.Discord.DeleteChannelMessage(channelID, messageID)
+
+	return otto.TrueValue()
+}
+
+func rugenvRugCommandSendFile(call otto.FunctionCall) otto.Value {
+	//channelID := call.Argument(0).String()
+	//name := call.Argument(1).String()
+	//data := call.Argument(2).String()
 
 	return otto.TrueValue()
 }
@@ -316,27 +319,32 @@ func rugenvStringDecodeHTML(call otto.FunctionCall) otto.Value {
 func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	var timeout int64
 	timeout, _ = call.Argument(0).ToInteger()
-	url := call.Argument(1).String()
+	uri := call.Argument(1).String()
 	headers, _ := call.Argument(2).Export()
 	stringResult, _ := call.Argument(3).ToBoolean()
 
 	client := http.Client{Timeout: time.Duration(timeout * int64(time.Second))}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", uri, nil)
+	if err != nil {
+		return otto.FalseValue()
+	}
 	for k, v := range headers.(map[string]interface{}) {
 		if value, ok := v.(string); ok {
 			req.Header.Add(k, value)
-			Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Adding header %s : %s", k, value)
+			Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Adding header '%s' : '%s'", k, value)
 		}
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
+		Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Error retrieving response; %s", err.Error())
 		return otto.FalseValue()
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Error reading response body; %s", err.Error())
 		return otto.FalseValue()
 	}
 
@@ -344,6 +352,7 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 		Duder.Log(LogChannel.Verbose, "[HTTP.Get] Returning string")
 		return response(string(body), otto.FalseValue())
 	}
+
 	Duder.Log(LogChannel.Verbose, "[HTTP.Get] Returning byte array")
 	return response(body, otto.FalseValue())
 }
@@ -351,22 +360,32 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 func rugenvHTTPPost(call otto.FunctionCall) otto.Value {
 	var timeout int64
 	timeout, _ = call.Argument(0).ToInteger()
-	url := call.Argument(1).String()
-	data := call.Argument(2).Object()
+	uri := call.Argument(1).String()
+	values, _ := call.Argument(2).Export()
 
-	// this doesn't actually work yet
-
-	print(timeout)
-	print(url)
-
-	for _, k := range data.Keys() {
-		log.Print(k)
-		if v, err := data.Get(k); err == nil {
-			log.Print(v)
+	client := http.Client{Timeout: time.Duration(timeout * int64(time.Second))}
+	formValues := url.Values{}
+	for k, v := range values.(map[string]interface{}) {
+		if value, ok := v.(string); ok {
+			formValues[k] = []string{value}
+			Duder.Logf(LogChannel.Verbose, "[HTTP.Post] Adding form value '%s' : '%s'", k, value)
 		}
 	}
 
-	return otto.TrueValue()
+	resp, err := client.PostForm(uri, formValues)
+	if err != nil {
+		Duder.Logf(LogChannel.Verbose, "[HTTP.Post] Error posting form; %s", err.Error())
+		return otto.FalseValue()
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		Duder.Logf(LogChannel.Verbose, "[HTTP.Post] Error reading response body; %s", err.Error())
+		return otto.FalseValue()
+	}
+
+	return response(string(body), otto.FalseValue())
 }
 
 func rugenvHTTPDetectContentType(call otto.FunctionCall) otto.Value {

@@ -50,12 +50,12 @@ func main() {
 
 	// load the rugs
 	if err := Duder.Rugs.Load(); err != nil {
-		log.Fatal("Failed to load rugs;", err)
+		log.Fatal("Failed to load rugs; ", err)
 	}
 
 	// connect to Discord
 	if err := Duder.Discord.Connect(); err != nil {
-		log.Fatal("Failed to connect to Discord;", err)
+		log.Fatal("Failed to connect to Discord; ", err)
 	}
 
 	Duder.Log(LogChannel.General, "Bot is now running.")

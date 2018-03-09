@@ -66,6 +66,9 @@ DuderCommand.prototype.isMention = function(str) {
 DuderCommand.prototype.deleteMessage = function() {
 	__BIND__(this.channelID, this.messageID);
 };
+DuderCommand.prototype.sendFile = function(channelID, name, data) {
+	__BIND__(channelID, name, data);
+};
 
 // Define DuderRug class
 function DuderRug(name, description) {
@@ -155,8 +158,8 @@ HTTP.get = function(timeout, url, headers, as_string) {
 
 	return __BIND__(timeout, url, headers, as_string);
 };
-HTTP.post = function(timeout, url, data) {
-	return __BIND__(timeout, url, data);
+HTTP.post = function(timeout, url, values) {
+	return __BIND__(timeout, url, values);
 };
 HTTP.detectContentType = function(content) {
 	return __BIND__(content);
