@@ -154,7 +154,7 @@ xbl.addCommand("xbl", function(cmd) {
 	var api_key = this.getAPIKey();
 	if (api_key === false) {
 		this.wprint("bad api key!");
-		this.setAPIKey("API_KEY_HERE");
+		cmd.replyToAuthor("XboxAPI API key hasn't been set");
 		return;
 	}
 
