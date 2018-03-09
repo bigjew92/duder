@@ -150,6 +150,7 @@ func (duder *DuderBot) Update(message *discordgo.MessageCreate) {
 		duder.Discord.SendMessageToChannel(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
 	}
 
+	duder.Logf(LogChannel.General, "Running update command '%s'", duder.Config.UpdateExec())
 	exec.Command(duder.Config.UpdateExec())
 }
 
