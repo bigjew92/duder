@@ -174,6 +174,16 @@ Base64.encodeToString = function(bytes) {
 	return __BIND__(bytes);
 };
 
+// XML
+function XML() {}
+XML.toJSON = function(xml) {
+	var json = __BIND__(xml);
+	if (json === false) {
+		return false;
+	}
+	return JSON.parse(json);
+};
+
 // Misc
 function isNumeric(n) {
 	return !isNaN(parseFloat(n)) && isFinite(n);

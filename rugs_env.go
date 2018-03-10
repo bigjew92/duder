@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/basgys/goxml2json"
 	"github.com/robertkrimen/otto"
 )
 
@@ -66,7 +67,9 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvHTTPDetectContentType),
 		bindRugFunction(rugenvHTTPParseURL),
 		/* Base64 */
-		bindRugFunction(rugenvBase64EncodeToString))
+		bindRugFunction(rugenvBase64EncodeToString),
+		/* XML */
+		bindRugFunction(rugenvXMLtoJSON))
 
 	if _, err := Duder.Rugs.VM.Run(env); err != nil {
 		//fmt.Print(env)
@@ -425,4 +428,17 @@ func rugenvBase64EncodeToString(call otto.FunctionCall) otto.Value {
 		return result
 	}
 	return otto.FalseValue()
+}
+
+/* XML */
+func rugenvXMLtoJSON(call otto.FunctionCall) otto.Value {
+	xml := call.Argument(0).String()
+	str := strings.NewReader(xml)
+
+	json, err := xml2json.Convert(str)
+	if err != nil {
+		return otto.FalseValue()
+	}
+
+	return response(json.String(), otto.FalseValue())
 }
