@@ -100,7 +100,7 @@ func (manager *PermissionsManager) IsUserManager(guildID string, userID string) 
 		return false
 	}
 
-	guild, ok := Duder.Discord.Guild(guildID)
+	guild, ok := Duder.Discord.GetGuildByID(guildID)
 	if !ok {
 		return false
 	}
@@ -127,7 +127,7 @@ func (manager *PermissionsManager) IsUserModerator(guildID string, userID string
 		return false
 	}
 
-	guild, ok := Duder.Discord.Guild(guildID)
+	guild, ok := Duder.Discord.GetGuildByID(guildID)
 	if !ok {
 		return false
 	}
@@ -150,7 +150,7 @@ func (manager *PermissionsManager) AddManagerRole(guildID string, roleName strin
 		manager.data.Guilds[guildID] = GuildPermissions{}
 		permissions, _ = manager.data.Guilds[guildID]
 	}
-	guild, ok := Duder.Discord.Guild(guildID)
+	guild, ok := Duder.Discord.GetGuildByID(guildID)
 	if !ok {
 		return errors.New("couldn't find guild")
 	}

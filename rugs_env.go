@@ -55,6 +55,7 @@ func createRugEnvironment() error {
 		/* DuderRug */
 		bindRugFunction(rugenvRugCreate),
 		bindRugFunction(rugenvRugAddCommand),
+		bindRugFunction(rugenvRugOnMessage),
 		bindRugFunction(rugenvRugLoadStorage),
 		bindRugFunction(rugenvRugSaveStorage),
 		bindRugFunction(rugenvRugDPrint),
@@ -178,7 +179,12 @@ func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 	guildID := call.Argument(0).String()
 	userID := call.Argument(1).String()
 
-	return response(Duder.Discord.MemberUsername(guildID, userID), otto.FalseValue())
+	member, ok := Duder.Discord.GetGuildMember(guildID, userID)
+	if !ok {
+		return otto.FalseValue()
+	}
+
+	return response(member.User.Username, otto.FalseValue())
 }
 
 /* DuderCommand */
@@ -260,6 +266,17 @@ func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 
 	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
 		rug.AddCommand(trigger, exec)
+	}
+
+	return otto.TrueValue()
+}
+
+func rugenvRugOnMessage(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	onMessage := call.Argument(1)
+
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.BindOnMessage(onMessage)
 	}
 
 	return otto.TrueValue()

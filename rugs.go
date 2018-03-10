@@ -37,7 +37,7 @@ type RugCommand struct {
 func (rugCmd *RugCommand) Run(rug Rug, message *discordgo.MessageCreate, args []string) {
 	// get the message guild ID
 	var guildID string
-	if guild, ok := Duder.Discord.MessageGuild(message); ok {
+	if guild, ok := Duder.Discord.GetMessageGuild(message); ok {
 		guildID = guild.ID
 	}
 
@@ -73,21 +73,78 @@ func (rugCmd *RugCommand) Run(rug Rug, message *discordgo.MessageCreate, args []
 		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Unable to run command", err.Error())
 	}
 
+	rug.cleanLeaks()
+}
+
+// RugMessageHandler struct
+type RugMessageHandler struct {
+	Exec otto.Value
+}
+
+// Rug defines the rug
+type Rug struct {
+	Commands        map[string]RugCommand
+	Description     string
+	File            string
+	Loaded          time.Time
+	MessageHandlers map[int]RugMessageHandler
+	Name            string
+	Object          *otto.Object
+}
+
+// AddCommand description
+func (rug *Rug) AddCommand(trigger string, exec otto.Value) {
+	rugCmd := RugCommand{
+		Trigger: trigger,
+		Exec:    exec,
+	}
+	rug.Commands[trigger] = rugCmd
+	Duder.Logf(LogChannel.Verbose, "[Rug.AddCommand] Added command '%s' to rug '%s'", trigger, rug.Name)
+}
+
+// BindOnMessage description
+func (rug *Rug) BindOnMessage(onMessage otto.Value) {
+	handler := RugMessageHandler{
+		Exec: onMessage,
+	}
+	rug.MessageHandlers[len(rug.MessageHandlers)] = handler
+	Duder.Logf(LogChannel.Verbose, "[Rug.BindOnMessage] Rug '%s' set a message delegate", rug.Name)
+}
+
+// CallOnMessage description
+func (rug *Rug) CallOnMessage(guild *discordgo.Guild, message *discordgo.MessageCreate, msg otto.Value) {
+	if len(rug.MessageHandlers) == 0 {
+		return
+	}
+
+	// call events
+	for i := 0; i < len(rug.MessageHandlers); i++ {
+		handler := rug.MessageHandlers[i]
+		if _, err := handler.Exec.Call(rug.Object.Value(), msg); err != nil {
+			Duder.Log(LogChannel.Warning, "[Rug.CallOnMessage] Unable to call event handler", err.Error())
+		}
+	}
+
+	rug.cleanLeaks()
+}
+
+// cleanLeaks description
+func (rug *Rug) cleanLeaks() {
 	// check for any leaked variables (strict mode; weren't declared) and delete them
 	if result, err := Duder.Rugs.VM.Run(`
-		(function() {
-			var __leaks__ = [];
-			for (var __n__ in this) {
-				if (typeof this[__n__] == "function") {
-					continue;
+			(function() {
+				var __leaks__ = [];
+				for (var __n__ in this) {
+					if (typeof this[__n__] == "function") {
+						continue;
+					}
+					if (__n__ != "console" && __n__ != "__n__" && __n__ != "__leaks__") {
+						__leaks__.push(__n__);
+						delete this[__n__];
+					}
 				}
-				if (__n__ != "console" && __n__ != "__n__" && __n__ != "__leaks__") {
-					__leaks__.push(__n__);
-					delete this[__n__];
-				}
-			}
-			return __leaks__;
-		})()`); err != nil {
+				return __leaks__;
+			})()`); err != nil {
 		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Failed to check for leaks", err.Error())
 	} else {
 		var leaks []string
@@ -103,26 +160,6 @@ func (rugCmd *RugCommand) Run(rug Rug, message *discordgo.MessageCreate, args []
 	}
 	// clean up
 	Duder.Rugs.VM.Run(`delete __leaks__;`)
-}
-
-// Rug defines the rug
-type Rug struct {
-	Commands    map[string]RugCommand
-	Description string
-	File        string
-	Loaded      time.Time
-	Name        string
-	Object      *otto.Object
-}
-
-// AddCommand description
-func (rug *Rug) AddCommand(trigger string, exec otto.Value) {
-	rugCmd := RugCommand{
-		Trigger: trigger,
-		Exec:    exec,
-	}
-	rug.Commands[trigger] = rugCmd
-	Duder.Logf(LogChannel.Verbose, "[Rug.AddCommand] Added command '%s' to rug '%s'", trigger, rug.Name)
 }
 
 // Key description
@@ -302,6 +339,7 @@ func (manager *RugManager) CreateRug(rugObj *otto.Object, name string, descripti
 	rug.Object = rugObj
 	rug.File = manager.loadFile
 	rug.Loaded = time.Now()
+	rug.MessageHandlers = map[int]RugMessageHandler{}
 	manager.Rugs[rug.Key()] = rug
 
 	Duder.Logf(LogChannel.Verbose, "[RugManager.CreateRug] Created rug '%s' from file '%s'", rug.Name, rug.File)
@@ -324,6 +362,40 @@ func (manager *RugManager) FindRugByObject(rugObj *otto.Object) (Rug, bool) {
 		return rug, true
 	}
 	return Rug{}, false
+}
+
+// RunCommand description
+func (manager *RugManager) RunCommand(message *discordgo.MessageCreate, cmd string, args []string) {
+	// check each rug to find the matching command
+	for _, rug := range manager.Rugs {
+		for _, rugCmd := range rug.Commands {
+			if rugCmd.Trigger == cmd {
+				rugCmd.Run(rug, message, args)
+				return
+			}
+		}
+	}
+}
+
+// OnMessage description
+func (manager *RugManager) OnMessage(guild *discordgo.Guild, message *discordgo.MessageCreate) {
+	// create the author
+	msgAuthor, err := Duder.Rugs.VM.Call("new DuderUser", nil, guild.ID, message.Author.ID, message.Author.Username)
+	if err != nil {
+		Duder.Log(LogChannel.Warning, "[RugManager.OnMessage] Unable to convert author", err.Error())
+		return
+	}
+
+	// create the message
+	msg, err := Duder.Rugs.VM.Call("new DuderMessage", nil, guild.ID, message.ChannelID, msgAuthor, message.ID, message.Content)
+	if err != nil {
+		Duder.Log(LogChannel.Warning, "[RugManager.OnMessage] Unable to create message", err.Error())
+		return
+	}
+
+	for _, rug := range manager.Rugs {
+		rug.CallOnMessage(guild, message, msg)
+	}
 }
 
 // teardown description

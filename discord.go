@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/foszor/duder/helpers/rugutils"
 )
 
 func init() {
@@ -56,13 +55,7 @@ func (manager *DiscordManager) Connect() error {
 	Duder.Log(LogChannel.General, "> Owner Client ID:", manager.owner.ID)
 
 	// register callback for messageCreate
-	//manager.session.AddHandler(onMessageCreate)
-	manager.session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
-		if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.Config.CommandPrefix())) {
-			Duder.Log(LogChannel.Verbose, "Proccessing command", message.Content)
-			manager.runCommand(message)
-		}
-	})
+	manager.session.AddHandler(manager.onMessageCreate)
 
 	// open the Discord connection
 	Duder.Log(LogChannel.General, "Opening Discord connection")
@@ -76,17 +69,20 @@ func (manager *DiscordManager) Connect() error {
 	return nil
 }
 
-// MemberUsername description
-func (manager *DiscordManager) MemberUsername(guildID string, memberID string) string {
-	if guild, err := manager.session.Guild(guildID); err == nil {
-		for _, member := range guild.Members {
-			if member.User.ID == memberID {
-				return member.User.Username
-			}
+// GetGuildMember description
+func (manager *DiscordManager) GetGuildMember(guildID string, userID string) (*discordgo.Member, bool) {
+	guild, ok := manager.GetGuildByID(guildID)
+	if !ok {
+		return nil, false
+	}
+
+	for _, member := range guild.Members {
+		if member.User.ID == userID {
+			return member, true
 		}
 	}
 
-	return "Unknown"
+	return nil, false
 }
 
 // SetMemberNickname description
@@ -94,8 +90,8 @@ func (manager *DiscordManager) SetMemberNickname(guildID string, memberID string
 	manager.session.GuildMemberNickname(guildID, memberID, nickname)
 }
 
-// Guild description
-func (manager *DiscordManager) Guild(guildID string) (*discordgo.Guild, bool) {
+// GetGuildByID description
+func (manager *DiscordManager) GetGuildByID(guildID string) (*discordgo.Guild, bool) {
 	guild, err := manager.session.Guild(guildID)
 	if err != nil {
 		return nil, false
@@ -104,9 +100,9 @@ func (manager *DiscordManager) Guild(guildID string) (*discordgo.Guild, bool) {
 	return guild, true
 }
 
-// MessageGuild description
-func (manager *DiscordManager) MessageGuild(message *discordgo.MessageCreate) (*discordgo.Guild, bool) {
-	channel, ok := manager.MessageChannel(message)
+// GetMessageGuild description
+func (manager *DiscordManager) GetMessageGuild(message *discordgo.MessageCreate) (*discordgo.Guild, bool) {
+	channel, ok := manager.GetMessageChannel(message)
 	if !ok {
 		return nil, false
 	}
@@ -119,14 +115,32 @@ func (manager *DiscordManager) MessageGuild(message *discordgo.MessageCreate) (*
 	return guild, true
 }
 
-// MessageChannel description
-func (manager *DiscordManager) MessageChannel(message *discordgo.MessageCreate) (*discordgo.Channel, bool) {
+// GetMessageChannel description
+func (manager *DiscordManager) GetMessageChannel(message *discordgo.MessageCreate) (*discordgo.Channel, bool) {
 	channel, err := manager.session.Channel(message.ChannelID)
 	if err != nil {
 		return nil, false
 	}
 
 	return channel, true
+}
+
+// ChannelTypeName description
+func (manager *DiscordManager) ChannelTypeName(channel *discordgo.Channel) string {
+	switch channel.Type {
+	case discordgo.ChannelTypeDM:
+		return "Direct Message"
+	case discordgo.ChannelTypeGroupDM:
+		return "Group Message"
+	case discordgo.ChannelTypeGuildCategory:
+		return "Guild Category"
+	case discordgo.ChannelTypeGuildText:
+		return "Guild Text"
+	case discordgo.ChannelTypeGuildVoice:
+		return "Guild Voice"
+	}
+
+	return "Unknown"
 }
 
 // DeleteChannelMessage description
@@ -283,52 +297,101 @@ func (manager *DiscordManager) SetAvatarByFile(filename string) error {
 	return nil
 }
 
-// teardown description
-func (manager *DiscordManager) teardown() {
-	manager.session.Close()
-}
-
-// onMessageCreate description
-/*
-func onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
-	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.Config.CommandPrefix())) {
-		Duder.Log(LogChannel.Verbose, "Proccessing command", message.Content)
-		runCommand(message)
-	}
-}
-*/
-
-// runCommand description
-func (manager *DiscordManager) runCommand(message *discordgo.MessageCreate) {
-	// strip the command prefix from the message content
-	content := message.Content[len(Duder.Config.CommandPrefix())+1 : len(message.Content)]
+// ParseArguments description
+func (manager *DiscordManager) ParseArguments(content string) []string {
 	content = strings.TrimSpace(content)
+	inQuote := false
+	var args []string
+	var arg string
 
-	// get the root command
-	args := rugutils.ParseArguments(content)
-	if len(args) == 0 {
-		return
-	}
-	cmd := strings.ToLower(args[0])
-	Duder.Logf(LogChannel.Verbose, "Root command '%s'", cmd)
-
-	// built in commands
-	switch cmd {
-	case "update":
-		Duder.Update(message)
-		return
-	case "shutdown":
-		Duder.Shutdown(message)
-		return
-	}
-
-	// check each rug to find the matching command
-	for _, rug := range Duder.Rugs.Rugs {
-		for _, rugCmd := range rug.Commands {
-			if rugCmd.Trigger == cmd {
-				rugCmd.Run(rug, message, args)
-				return
+	for _, c := range content {
+		if inQuote {
+			if c == '"' {
+				inQuote = false
+				args = append(args, arg)
+				arg = ""
+			} else {
+				arg = arg + string(c)
+			}
+		} else {
+			if c == ' ' {
+				if len(arg) > 0 {
+					args = append(args, arg)
+					arg = ""
+				}
+			} else if c == '"' {
+				inQuote = true
+			} else {
+				arg = arg + string(c)
 			}
 		}
 	}
+
+	if len(arg) > 0 {
+		args = append(args, arg)
+	}
+
+	return args
+}
+
+// onMessageCreate description
+func (manager *DiscordManager) onMessageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
+	// stop playing with yourself!
+	if message.Author.ID == manager.me.ID {
+		return
+	}
+
+	// get message channel
+	channel, ok := manager.GetMessageChannel(message)
+	if !ok {
+		return
+	}
+
+	// get message guild
+	guild, ok := manager.GetMessageGuild(message)
+	if ok {
+		// message event
+		Duder.Rugs.OnMessage(guild, message)
+	}
+
+	// check if the message has the command prefix
+	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.Config.CommandPrefix())) {
+		// strip the command prefix from the message content
+		content := message.Content[len(Duder.Config.CommandPrefix())+1 : len(message.Content)]
+		content = strings.TrimSpace(content)
+
+		// get the root command
+		args := manager.ParseArguments(content)
+		if len(args) == 0 {
+			return
+		}
+		cmd := strings.ToLower(args[0])
+		Duder.Logf(LogChannel.Verbose, "Root command '%s'", cmd)
+
+		Duder.Logf(LogChannel.Verbose, "Command in %s(%s:%s) from %s(%s): %s", channel.Name, channel.ID, manager.ChannelTypeName(channel), message.Author.Username, message.Author.ID, message.Content)
+		// check for internal commands first
+		if !manager.runCommand(message, cmd, args) {
+			// run rug commands
+			Duder.Rugs.RunCommand(message, cmd, args)
+		}
+	}
+}
+
+// runCommand description
+func (manager *DiscordManager) runCommand(message *discordgo.MessageCreate, cmd string, args []string) bool {
+	switch cmd {
+	case "update":
+		Duder.Update(message)
+		return true
+	case "shutdown":
+		Duder.Shutdown(message)
+		return true
+	}
+
+	return false
+}
+
+// teardown description
+func (manager *DiscordManager) teardown() {
+	manager.session.Close()
 }

@@ -3,47 +3,9 @@ package rugutils
 import (
 	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
-
-// ParseArguments description
-func ParseArguments(content string) []string {
-	content = strings.TrimSpace(content)
-	inQuote := false
-	var args []string
-	var arg string
-
-	for _, c := range content {
-		if inQuote {
-			if c == '"' {
-				inQuote = false
-				args = append(args, arg)
-				arg = ""
-			} else {
-				arg = arg + string(c)
-			}
-		} else {
-			if c == ' ' {
-				if len(arg) > 0 {
-					args = append(args, arg)
-					arg = ""
-				}
-			} else if c == '"' {
-				inQuote = true
-			} else {
-				arg = arg + string(c)
-			}
-		}
-	}
-
-	if len(arg) > 0 {
-		args = append(args, arg)
-	}
-
-	return args
-}
 
 // ConvertMentions description
 func ConvertMentions(message *discordgo.MessageCreate) string {

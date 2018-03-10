@@ -70,12 +70,24 @@ DuderCommand.prototype.sendFile = function(channelID, name, data) {
 	__BIND__(channelID, name, data);
 };
 
+// Define DuderMessage class
+function DuderMessage(guildID, channelID, author, messageID, content) {
+	this.guildID = guildID;
+	this.channelID = channelID;
+	this.author = author;
+	this.messageID = messageID;
+	this.content = content;
+}
+
 // Define DuderRug class
 function DuderRug(name, description) {
 	__BIND__(this, name, description);
 }
 DuderRug.prototype.addCommand = function(trigger, exec) {
 	__BIND__(this, trigger, exec);
+};
+DuderRug.prototype.onMessage = function(onMessage) {
+	__BIND__(this, onMessage);
 };
 DuderRug.prototype.loadStorage = function() {
 	var data = __BIND__(this);

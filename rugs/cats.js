@@ -19,7 +19,7 @@ cats.addCommand("catfact", function(cmd) {
 	cmd.replyToChannel("```{0}```".format(json.fact));
 });
 
-cats.imageTypes = ["jpg", "png", "gif"];
+cats.imageTypes = ["jpg", "png"];
 
 cats.addCommand("catpic", function(cmd) {
 	var r = Math.getRandomInRange(0, this.imageTypes.length - 1);
@@ -29,6 +29,16 @@ cats.addCommand("catpic", function(cmd) {
 		type
 	);
 
+	this.showPic(cmd, url);
+});
+
+cats.addCommand("catgif", function(cmd) {
+	var url = "http://thecatapi.com/api/images/get?format=xml&type=gif";
+
+	this.showPic(cmd, url);
+});
+
+cats.showPic = function(cmd, url) {
 	Duder.startTyping(cmd.channelID);
 
 	var content = HTTP.get(10, url, {});
@@ -50,4 +60,4 @@ cats.addCommand("catpic", function(cmd) {
 		return;
 	}
 	cmd.replyToChannel(json.response.data.images.image.url);
-});
+};
