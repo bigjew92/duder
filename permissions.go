@@ -91,6 +91,10 @@ func (manager *PermissionsManager) Save() error {
 
 // IsUserManager description
 func (manager *PermissionsManager) IsUserManager(guildID string, userID string) bool {
+	if userID == Duder.Config.OwnerID() {
+		return true
+	}
+
 	permissions, ok := manager.data.Guilds[guildID]
 	if !ok {
 		return false
@@ -114,6 +118,10 @@ func (manager *PermissionsManager) IsUserManager(guildID string, userID string) 
 
 // IsUserModerator description
 func (manager *PermissionsManager) IsUserModerator(guildID string, userID string) bool {
+	if userID == Duder.Config.OwnerID() {
+		return true
+	}
+
 	permissions, ok := manager.data.Guilds[guildID]
 	if !ok {
 		return false

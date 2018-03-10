@@ -35,9 +35,22 @@ memes.setAPIPassword = function(password) {
 	this.saveStorage(this.storage);
 };
 
-memes.templates = {
-	twbg: "563423",
-	nomb: "16464531"
+memes.getTemplateID = function(templateName) {
+	if (this.storage.templates === undefined) {
+		return false;
+	} else if (this.storage.templates[templateName] === undefined) {
+		return false;
+	}
+
+	return this.storage.templates[templateName];
+};
+
+memes.addTemplate = function(templateID, templateName) {
+	if (this.storage.templates === undefined) {
+		this.storage.templates = {};
+	}
+	this.storage.templates[templateName] = templateID;
+	this.saveStorage(this.storage);
 };
 
 memes.addCommand("meme", function(cmd) {
@@ -61,6 +74,25 @@ memes.addCommand("meme", function(cmd) {
 			cmd.replyToAuthor("usage: `setpassword YOUR_API_PASSWORD`");
 			return;
 		}
+	} else if (action === "addtemplate") {
+		if (!cmd.author.isModerator) {
+			cmd.replyToAuthor("you don't have permissions to do that");
+			return;
+		}
+		if (cmd.args.length === 4) {
+			var id = cmd.args[2];
+			var name = cmd.args[3];
+			if (!isNumeric(id)) {
+				cmd.replyToAuthor("templateID should be numeric");
+				return;
+			}
+			this.addTemplate(id, name);
+			cmd.replyToAuthor("templated added");
+			return;
+		} else {
+			cmd.replyToAuthor("usage: `addtemplate templateID templateName`");
+			return;
+		}
 	}
 
 	if (this.getAPIUsername() === false || this.getAPIPassword() === false) {
@@ -72,9 +104,10 @@ memes.addCommand("meme", function(cmd) {
 		cmd.replyToAuthor('usage: `meme template "top text" "bottom text"`.');
 		return;
 	}
-	var template = cmd.args[1];
+	var templateName = cmd.args[1];
+	var templateID = this.getTemplateID(templateName);
 
-	if (this.templates[template] === undefined) {
+	if (templateID === false) {
 		cmd.replyToAuthor("invalid template");
 		return;
 	}
@@ -87,14 +120,14 @@ memes.addCommand("meme", function(cmd) {
 	var values = {};
 	values.username = this.getAPIUsername();
 	values.password = this.getAPIPassword();
-	values.template_id = this.templates[template];
+	values.template_id = templateID;
 	values.text0 = top;
 	values.text1 = bottom;
 
 	Duder.startTyping(cmd.channelID);
 
 	var content = HTTP.post(10, url, values);
-	this.dprint(content);
+	//this.dprint(content);
 	if (content === false) {
 		cmd.replyToAuthor("something went wrong");
 		return;
