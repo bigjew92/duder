@@ -166,6 +166,9 @@ reactionrank.addCommand("rank", function(cmd) {
 	var nextLevel = this.getUserNextLevel(cmd.guildID, userID);
 
 	var percent = Math.floor((xp / nextLevel) * 100);
+	if (isNaN(percent)) {
+		percent = 0;
+	}
 
 	cmd.replyToAuthor("you are currently level {0} and {1}% to your next level".format(level, percent));
 });
