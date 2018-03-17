@@ -74,9 +74,7 @@ weather.addCommand("weather", function(cmd) {
 	}
 
 	var yql = encodeURI(
-		'select * from weather.forecast where woeid in (select woeid from geo.places(1) where text="' +
-			citystate +
-			'")'
+		'select * from weather.forecast where woeid in (select woeid from geo.places(1) where text="' + citystate + '")'
 	);
 	var url =
 		"https://query.yahooapis.com/v1/public/yql?q=" +
@@ -102,10 +100,7 @@ weather.addCommand("weather", function(cmd) {
 
 	var count = 0;
 	for (var day in forecast) {
-		var date = forecast[day].date.substring(
-			0,
-			forecast[day].date.length - 5
-		);
+		var date = forecast[day].date.substring(0, forecast[day].date.length - 5);
 		var icon = forecast[day].text;
 		if (this.weatherIcons[icon] !== undefined) {
 			icon = this.weatherIcons[icon];
@@ -115,11 +110,7 @@ weather.addCommand("weather", function(cmd) {
 		j +=
 			"{" +
 			'"name": "{0} {1}",'.format(icon, date) +
-			'"value": "*{0}*\\nLow: {1} High: {2}"'.format(
-				forecast[day].text,
-				forecast[day].low,
-				forecast[day].high
-			) +
+			'"value": "*{0}*\\nLow: {1} High: {2}"'.format(forecast[day].text, forecast[day].low, forecast[day].high) +
 			"}";
 		if (++count > 2) {
 			break;

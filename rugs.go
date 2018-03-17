@@ -42,54 +42,57 @@ func (rugCmd *RugCommand) Run(rug Rug, message *discordgo.MessageCreate, args []
 	}
 
 	// create the author value
-	cmdAuthor, err := Duder.Rugs.VM.Call("new DuderUser", nil, guildID, message.Author.ID, message.Author.Username)
+	author, err := Duder.Rugs.VM.Call("new DuderUser", nil, guildID, message.Author.ID, message.Author.Username)
 	if err != nil {
-		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Unable to convert author", err.Error())
+		Duder.Log(LogWarning, "[RugCommand.Run] Unable to convert author", err.Error())
 		return
 	}
 
 	// create the mentions array value
-	cmdMentions, err := Duder.Rugs.VM.Object(rugutils.ConvertMentions(message))
+	mentions, err := Duder.Rugs.VM.Object(rugutils.ConvertMentions(guildID, message))
 	if err != nil {
-		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Unable to convert mentions", err.Error())
+		Duder.Log(LogWarning, "[RugCommand.Run] Unable to convert mentions", err.Error())
 		return
 	}
 
 	// create the arguments array value
 	cmdArgs, err := Duder.Rugs.VM.Object(rugutils.ConvertArguments(args))
 	if err != nil {
-		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Unable to convert arguments", err.Error())
+		Duder.Log(LogWarning, "[RugCommand.Run] Unable to convert arguments", err.Error())
 		return
 	}
 
 	// create the command
-	cmd, err := Duder.Rugs.VM.Call("new DuderCommand", nil, guildID, message.ChannelID, message.ID, cmdAuthor, cmdMentions, cmdArgs)
+	cmd, err := Duder.Rugs.VM.Call("new DuderCommand", nil, guildID, message.ChannelID, message.ID, author, mentions, cmdArgs)
 	if err != nil {
-		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Unable to create command", err.Error())
+		Duder.Log(LogWarning, "[RugCommand.Run] Unable to create command", err.Error())
 	}
 
 	// execute the command
 	if _, err := rugCmd.Exec.Call(rug.Object.Value(), cmd); err != nil {
-		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Unable to run command", err.Error())
+		Duder.Log(LogWarning, "[RugCommand.Run] Unable to run command", err.Error())
 	}
 
 	rug.cleanLeaks()
 }
 
-// RugMessageHandler struct
-type RugMessageHandler struct {
+// RugEventHandler struct
+type RugEventHandler struct {
 	Exec otto.Value
 }
 
 // Rug defines the rug
 type Rug struct {
-	Commands        map[string]RugCommand
-	Description     string
-	File            string
-	Loaded          time.Time
-	MessageHandlers map[int]RugMessageHandler
-	Name            string
-	Object          *otto.Object
+	Commands                        map[string]RugCommand
+	Description                     string
+	File                            string
+	Loaded                          time.Time
+	Name                            string
+	Object                          *otto.Object
+	OnMessageHandlers               map[int]RugEventHandler
+	OnMessageReactionAddHandlers    map[int]RugEventHandler
+	OnMessageReactionRemoveHandlers map[int]RugEventHandler
+	OnPresenceUpdateHandlers        map[int]RugEventHandler
 }
 
 // AddCommand description
@@ -99,29 +102,110 @@ func (rug *Rug) AddCommand(trigger string, exec otto.Value) {
 		Exec:    exec,
 	}
 	rug.Commands[trigger] = rugCmd
-	Duder.Logf(LogChannel.Verbose, "[Rug.AddCommand] Added command '%s' to rug '%s'", trigger, rug.Name)
+	Duder.Logf(LogVerbose, "[Rug.AddCommand] Added command '%s' to rug '%s'", trigger, rug.Name)
 }
 
 // BindOnMessage description
 func (rug *Rug) BindOnMessage(onMessage otto.Value) {
-	handler := RugMessageHandler{
+	handler := RugEventHandler{
 		Exec: onMessage,
 	}
-	rug.MessageHandlers[len(rug.MessageHandlers)] = handler
-	Duder.Logf(LogChannel.Verbose, "[Rug.BindOnMessage] Rug '%s' set a message delegate", rug.Name)
+	rug.OnMessageHandlers[len(rug.OnMessageHandlers)] = handler
+	Duder.Logf(LogVerbose, "[Rug.BindOnMessage] Rug '%s' added an event delegate", rug.Name)
 }
 
 // CallOnMessage description
 func (rug *Rug) CallOnMessage(guild *discordgo.Guild, message *discordgo.MessageCreate, msg otto.Value) {
-	if len(rug.MessageHandlers) == 0 {
+	if len(rug.OnMessageHandlers) == 0 {
 		return
 	}
 
 	// call events
-	for i := 0; i < len(rug.MessageHandlers); i++ {
-		handler := rug.MessageHandlers[i]
+	for i := 0; i < len(rug.OnMessageHandlers); i++ {
+		handler := rug.OnMessageHandlers[i]
 		if _, err := handler.Exec.Call(rug.Object.Value(), msg); err != nil {
-			Duder.Log(LogChannel.Warning, "[Rug.CallOnMessage] Unable to call event handler", err.Error())
+			Duder.Log(LogWarning, "[Rug.CallOnMessage] Unable to call event handler", err.Error())
+		}
+	}
+
+	rug.cleanLeaks()
+}
+
+// BindOnMessageReactionAdd description
+func (rug *Rug) BindOnMessageReactionAdd(onMessageReactionAdd otto.Value) {
+	handler := RugEventHandler{
+		Exec: onMessageReactionAdd,
+	}
+	rug.OnMessageReactionAddHandlers[len(rug.OnMessageReactionAddHandlers)] = handler
+	Duder.Logf(LogVerbose, "[Rug.BindOnMessageReactionAdd] Rug '%s' added an event delegate", rug.Name)
+}
+
+// CallOnMessageReactionAdd description
+func (rug *Rug) CallOnMessageReactionAdd(reactionAdd otto.Value) {
+	if len(rug.OnMessageReactionAddHandlers) == 0 {
+		return
+	}
+
+	// call events
+	for i := 0; i < len(rug.OnMessageReactionAddHandlers); i++ {
+		handler := rug.OnMessageReactionAddHandlers[i]
+		if _, err := handler.Exec.Call(rug.Object.Value(), reactionAdd); err != nil {
+			Duder.Log(LogWarning, "[Rug.CallOnMessageReactionAdd] Unable to call event handler", err.Error())
+		}
+	}
+
+	rug.cleanLeaks()
+}
+
+// BindOnMessageReactionRemove description
+func (rug *Rug) BindOnMessageReactionRemove(onMessageReactionRemove otto.Value) {
+	handler := RugEventHandler{
+		Exec: onMessageReactionRemove,
+	}
+	rug.OnMessageReactionRemoveHandlers[len(rug.OnMessageReactionRemoveHandlers)] = handler
+	Duder.Logf(LogVerbose, "[Rug.BindOnMessageReactionRemove] Rug '%s' added an event delegate", rug.Name)
+}
+
+// CallOnMessageReactionRemove description
+func (rug *Rug) CallOnMessageReactionRemove(reactionRemove otto.Value) {
+	if len(rug.OnMessageReactionRemoveHandlers) == 0 {
+		return
+	}
+
+	// call events
+	for i := 0; i < len(rug.OnMessageReactionRemoveHandlers); i++ {
+		handler := rug.OnMessageReactionRemoveHandlers[i]
+		if _, err := handler.Exec.Call(rug.Object.Value(), reactionRemove); err != nil {
+			Duder.Log(LogWarning, "[Rug.CallOnMessageReactionRemove] Unable to call event handler", err.Error())
+		}
+	}
+
+	rug.cleanLeaks()
+}
+
+// BindOnPresenceUpdate description
+func (rug *Rug) BindOnPresenceUpdate(onPresence otto.Value) {
+	handler := RugEventHandler{
+		Exec: onPresence,
+	}
+	rug.OnPresenceUpdateHandlers[len(rug.OnPresenceUpdateHandlers)] = handler
+	Duder.Logf(LogVerbose, "[Rug.BindOnPresenceUpdate] Rug '%s' added an event delegate", rug.Name)
+}
+
+// CallOnPresenceUpdate description
+func (rug *Rug) CallOnPresenceUpdate(guild *discordgo.Guild, user otto.Value, presence *discordgo.PresenceUpdate) {
+	if len(rug.OnPresenceUpdateHandlers) == 0 {
+		return
+	}
+
+	// TODO: provide more information
+	status := string(presence.Status)
+
+	// call events
+	for i := 0; i < len(rug.OnPresenceUpdateHandlers); i++ {
+		handler := rug.OnPresenceUpdateHandlers[i]
+		if _, err := handler.Exec.Call(rug.Object.Value(), guild.ID, user, status); err != nil {
+			Duder.Log(LogWarning, "[Rug.CallOnPresenceUpdate] Unable to call event handler", err.Error())
 		}
 	}
 
@@ -145,7 +229,7 @@ func (rug *Rug) cleanLeaks() {
 				}
 				return __leaks__;
 			})()`); err != nil {
-		Duder.Log(LogChannel.Warning, "[RugCommand.Run] Failed to check for leaks", err.Error())
+		Duder.Log(LogWarning, "[Rug.CleanLeaks] Failed to check for leaks", err.Error())
 	} else {
 		var leaks []string
 		export, _ := result.Export()
@@ -154,7 +238,7 @@ func (rug *Rug) cleanLeaks() {
 		}
 		if len(leaks) > 0 {
 			for _, leak := range leaks {
-				Duder.Logf(LogChannel.Warning, "[RugCommand.Run] %s leaked variable '%s'", rug.File, leak)
+				Duder.Logf(LogWarning, "[Rug.CleanLeaks] '%s' leaked variable '%s'", rug.File, leak)
 			}
 		}
 	}
@@ -174,12 +258,12 @@ func (rug *Rug) LogPrefix() string {
 
 // DPrint description
 func (rug *Rug) DPrint(msg string) {
-	Duder.Logf(LogChannel.Verbose, "%s %s", rug.LogPrefix(), msg)
+	Duder.Logf(LogVerbose, "%s %s", rug.LogPrefix(), msg)
 }
 
 // WPrint description
 func (rug *Rug) WPrint(msg string) {
-	Duder.Logf(LogChannel.Warning, "%s %s", rug.LogPrefix(), msg)
+	Duder.Logf(LogWarning, "%s %s", rug.LogPrefix(), msg)
 }
 
 // StorageFile description
@@ -189,28 +273,28 @@ func (rug *Rug) StorageFile() string {
 
 // LoadStorage description
 func (rug *Rug) LoadStorage() (string, bool) {
-	Duder.Logf(LogChannel.Verbose, "[Rug.LoadStorage] Loading storage for rug '%s'", rug.Name)
+	Duder.Logf(LogVerbose, "[Rug.LoadStorage] Loading storage for rug '%s'", rug.Name)
 
 	path := rug.StorageFile()
 
 	// check if the file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		Duder.Logf(LogChannel.Verbose, "[Rug.LoadStorage] Storage file for rug '%s' not found; creating new one...", rug.Name)
+		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Storage file for rug '%s' not found; creating new one...", rug.Name)
 
 		// create the storage file
 		if e := ioutil.WriteFile(path, []byte("{}"), 0777); e != nil {
-			Duder.Logf(LogChannel.Verbose, "[Rug.LoadStorage] Unable to create storage file for rug '%s'", rug.Name)
+			Duder.Logf(LogVerbose, "[Rug.LoadStorage] Unable to create storage file for rug '%s'", rug.Name)
 			return "{}", false
 		}
 
 		// return empty storage
-		Duder.Logf(LogChannel.Verbose, "[Rug.LoadStorage] Successfully created storage file for rug '%s'", rug.Name)
+		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Successfully created storage file for rug '%s'", rug.Name)
 		return "{}", true
 	}
 
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		Duder.Logf(LogChannel.Verbose, "[Rug.LoadStorage] Unable to read storage file for rug '%s'", rug.Name)
+		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Unable to read storage file for rug '%s'", rug.Name)
 		return "{}", false
 	}
 
@@ -219,12 +303,12 @@ func (rug *Rug) LoadStorage() (string, bool) {
 
 // SaveStorage description
 func (rug *Rug) SaveStorage(data string) bool {
-	Duder.Logf(LogChannel.Verbose, "[Rug.SaveStorage] Saving storage for rug '%s'", rug.Name)
+	Duder.Logf(LogVerbose, "[Rug.SaveStorage] Saving storage for rug '%s'", rug.Name)
 
 	path := rug.StorageFile()
 
 	if err := ioutil.WriteFile(path, []byte(data), 0777); err != nil {
-		Duder.Logf(LogChannel.Verbose, "[Rug.LoadStorage] Unable to write storage file for rug '%s'; %s", rug.Name, err.Error())
+		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Unable to write storage file for rug '%s'; %s", rug.Name, err.Error())
 		return false
 	}
 
@@ -248,7 +332,7 @@ func (manager *RugManager) Load() error {
 		return errors.New("rugs path isn't defined")
 	}
 
-	Duder.Logf(LogChannel.General, "Loading Rugs from folder '%v'", path)
+	Duder.Logf(LogGeneral, "Loading Rugs from folder '%v'", path)
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.Mkdir(path, 0777)
@@ -270,7 +354,7 @@ func (manager *RugManager) Load() error {
 						file := filepath.ToSlash(event.Name)
 						// make sure the file is .js
 						if strings.HasSuffix(file, ".js") {
-							Duder.Logf(LogChannel.Verbose, "[RugManager.Watcher] Rug file '%s' was modified", file)
+							Duder.Logf(LogVerbose, "[RugManager.Watcher] Rug file '%s' was modified", file)
 							if rug, ok := manager.FindRugByFile(file); ok {
 								duration := time.Since(rug.Loaded)
 								if duration.Seconds() > 0.5 {
@@ -278,7 +362,7 @@ func (manager *RugManager) Load() error {
 									manager.LoadRug(file)
 								}
 							} else {
-								Duder.Logf(LogChannel.Warning, "[RugManager.Watcher] Error finding rug for file '%s'", file)
+								Duder.Logf(LogWarning, "[RugManager.Watcher] Error finding rug for file '%s'", file)
 							}
 						}
 					}
@@ -289,9 +373,9 @@ func (manager *RugManager) Load() error {
 
 		err = manager.Watcher.Add(path)
 		if err != nil {
-			Duder.Logf(LogChannel.Warning, "[RugManager.Watcher] Unable to watch rugs path '%s': %s", path, err.Error())
+			Duder.Logf(LogWarning, "[RugManager.Watcher] Unable to watch rugs path '%s': %s", path, err.Error())
 		} else {
-			Duder.Logf(LogChannel.Verbose, "[RugManager.Watcher] Watching rugs in path '%s'", path)
+			Duder.Logf(LogVerbose, "[RugManager.Watcher] Watching rugs in path '%s'", path)
 		}
 	}
 
@@ -316,15 +400,15 @@ func (manager *RugManager) Load() error {
 // LoadRug description
 func (manager *RugManager) LoadRug(file string) {
 	// read the file
-	Duder.Logf(LogChannel.Verbose, "[RugManager.LoadRug] Loading rug file '%s'", file)
+	Duder.Logf(LogVerbose, "[RugManager.LoadRug] Loading rug file '%s'", file)
 	manager.loadFile = file
 	if buf, err := ioutil.ReadFile(file); err != nil {
-		Duder.Logf(LogChannel.Warning, "[RugManager.LoadRug] Unable to read rug file '%s': '%s'", file, err.Error())
+		Duder.Logf(LogWarning, "[RugManager.LoadRug] Unable to read rug file '%s': '%s'", file, err.Error())
 	} else {
 		s := string(buf)
 		script := fmt.Sprintf("(function(){%s})()", s)
 		if _, err := manager.VM.Run(script); err != nil {
-			Duder.Logf(LogChannel.Warning, "[RugManager.LoadRug] Error loading rug file '%s': '%s'", file, err.Error())
+			Duder.Logf(LogWarning, "[RugManager.LoadRug] Error loading rug file '%s': '%s'", file, err.Error())
 			manager.loadErrors = append(manager.loadErrors, err)
 		}
 	}
@@ -339,10 +423,13 @@ func (manager *RugManager) CreateRug(rugObj *otto.Object, name string, descripti
 	rug.Object = rugObj
 	rug.File = manager.loadFile
 	rug.Loaded = time.Now()
-	rug.MessageHandlers = map[int]RugMessageHandler{}
+	rug.OnMessageHandlers = map[int]RugEventHandler{}
+	rug.OnMessageReactionAddHandlers = map[int]RugEventHandler{}
+	rug.OnMessageReactionRemoveHandlers = map[int]RugEventHandler{}
+	rug.OnPresenceUpdateHandlers = map[int]RugEventHandler{}
 	manager.Rugs[rug.Key()] = rug
 
-	Duder.Logf(LogChannel.Verbose, "[RugManager.CreateRug] Created rug '%s' from file '%s'", rug.Name, rug.File)
+	Duder.Logf(LogVerbose, "[RugManager.CreateRug] Created rug '%s' from file '%s'", rug.Name, rug.File)
 }
 
 // FindRugByFile description
@@ -382,19 +469,97 @@ func (manager *RugManager) OnMessage(guild *discordgo.Guild, message *discordgo.
 	// create the author
 	msgAuthor, err := Duder.Rugs.VM.Call("new DuderUser", nil, guild.ID, message.Author.ID, message.Author.Username)
 	if err != nil {
-		Duder.Log(LogChannel.Warning, "[RugManager.OnMessage] Unable to convert author", err.Error())
+		Duder.Log(LogWarning, "[RugManager.OnMessage] Unable to create author", err.Error())
 		return
 	}
 
 	// create the message
 	msg, err := Duder.Rugs.VM.Call("new DuderMessage", nil, guild.ID, message.ChannelID, msgAuthor, message.ID, message.Content)
 	if err != nil {
-		Duder.Log(LogChannel.Warning, "[RugManager.OnMessage] Unable to create message", err.Error())
+		Duder.Log(LogWarning, "[RugManager.OnMessage] Unable to create message", err.Error())
 		return
 	}
 
 	for _, rug := range manager.Rugs {
 		rug.CallOnMessage(guild, message, msg)
+	}
+}
+
+// OnPresenceUpdate description
+func (manager *RugManager) OnPresenceUpdate(guild *discordgo.Guild, user *discordgo.User, presence *discordgo.PresenceUpdate) {
+	// create the user
+	presenceUser, err := Duder.Rugs.VM.Call("new DuderUser", nil, guild.ID, user.ID, user.Username)
+	if err != nil {
+		Duder.Log(LogWarning, "[RugManager.OnPresenceUpdate] Unable to create user", err.Error())
+		return
+	}
+
+	for _, rug := range manager.Rugs {
+		rug.CallOnPresenceUpdate(guild, presenceUser, presence)
+	}
+}
+
+// createReaction description
+func (manager *RugManager) createReaction(guild *discordgo.Guild, message *discordgo.Message, reactionInstigator *discordgo.User, reaction *discordgo.MessageReaction, add bool) (otto.Value, bool) {
+	// create the emoji value
+	emoji, err := Duder.Rugs.VM.Call("new DuderEmoji", nil, reaction.Emoji.ID, reaction.Emoji.Name, []string{}, reaction.Emoji.Managed, reaction.Emoji.RequireColons, reaction.Emoji.Animated)
+	if err != nil {
+		Duder.Log(LogWarning, "[RugManager.createReaction] Unable to create emoji", err.Error())
+		return otto.Value{}, false
+	}
+
+	// create the author value
+	msgAuthor, err := Duder.Rugs.VM.Call("new DuderUser", nil, guild.ID, message.Author.ID, message.Author.Username)
+	if err != nil {
+		Duder.Log(LogWarning, "[RugManager.createReaction] Unable to create author", err.Error())
+		return otto.Value{}, false
+	}
+
+	// create the message value
+	msg, err := Duder.Rugs.VM.Call("new DuderMessage", nil, guild.ID, message.ChannelID, msgAuthor, message.ID, message.Content)
+	if err != nil {
+		Duder.Log(LogWarning, "[RugManager.createReaction] Unable to create message", err.Error())
+		return otto.Value{}, false
+	}
+
+	// create the instigator value
+	instigator, err := Duder.Rugs.VM.Call("new DuderUser", nil, guild.ID, reactionInstigator.ID, reactionInstigator.Username)
+	if err != nil {
+		Duder.Log(LogWarning, "[RugManager.createReaction] Unable to create instigator", err.Error())
+		return otto.Value{}, false
+	}
+
+	// create the reaction value
+	r, err := Duder.Rugs.VM.Call("new DuderMessageReaction", nil, guild.ID, reaction.ChannelID, msg, instigator, emoji, add)
+	if err != nil {
+		Duder.Log(LogWarning, "[RugManager.createReaction] Unable to create emoji", err.Error())
+		return otto.Value{}, false
+	}
+
+	return r, true
+}
+
+// OnMessageReactionAdd description
+func (manager *RugManager) OnMessageReactionAdd(guild *discordgo.Guild, message *discordgo.Message, instigator *discordgo.User, reactionAdd *discordgo.MessageReaction) {
+	reaction, ok := manager.createReaction(guild, message, instigator, reactionAdd, true)
+	if !ok {
+		return
+	}
+
+	for _, rug := range manager.Rugs {
+		rug.CallOnMessageReactionAdd(reaction)
+	}
+}
+
+// OnMessageReactionRemove description
+func (manager *RugManager) OnMessageReactionRemove(guild *discordgo.Guild, message *discordgo.Message, instigator *discordgo.User, reactionRemove *discordgo.MessageReaction) {
+	reaction, ok := manager.createReaction(guild, message, instigator, reactionRemove, false)
+	if !ok {
+		return
+	}
+
+	for _, rug := range manager.Rugs {
+		rug.CallOnMessageReactionRemove(reaction)
 	}
 }
 

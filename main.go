@@ -17,19 +17,20 @@ import (
 // VERSION contains the current version
 const VERSION string = "1.0-a1"
 
-// LogChannel description
-var LogChannel = struct {
-	General uint8
-	Warning uint8
-	Verbose uint8
-}{
-	General: 0,
-	Warning: 1,
-	Verbose: 2,
-}
+// Log channels
+type LogChannel uint8
+
+const (
+	// LogGeneral description
+	LogGeneral = 0
+	// LogWarning description
+	LogWarning = 1
+	// LogVerbose description
+	LogVerbose = 2
+)
 
 func init() {
-	Duder.Logf(LogChannel.General, "Duder version %s", VERSION)
+	Duder.Logf(LogGeneral, "Duder version %s", VERSION)
 
 	flag.BoolVar(&Duder.debug, "debug", true, "Enable debug mode")
 	flag.StringVar(&Duder.Config.path, "config", "config.json", "Configuration file (default config.json)")
@@ -77,7 +78,7 @@ func main() {
 		log.Fatal("Failed to connect to Discord; ", err)
 	}
 
-	Duder.Log(LogChannel.General, "Bot is now running.")
+	Duder.Log(LogGeneral, "Bot is now running.")
 
 	// register bot sg.shutdown channel to receive shutdown signals.
 	signal.Notify(Duder.shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
@@ -85,7 +86,7 @@ func main() {
 	// wait for shutdown signal
 	<-Duder.shutdownSignal
 
-	Duder.Log(LogChannel.General, "termination signal received; shutting down...")
+	Duder.Log(LogGeneral, "termination signal received; shutting down...")
 
 	// gracefully shut down the bot
 	Duder.teardown()
@@ -108,16 +109,16 @@ var Duder = &DuderBot{}
 
 // Log description
 func (duder *DuderBot) Log(channel uint8, v ...interface{}) {
-	if channel == LogChannel.Verbose && !duder.debug {
+	if channel == LogVerbose && !duder.debug {
 		return
 	}
 
 	switch channel {
-	case LogChannel.Verbose:
+	case LogVerbose:
 		color.Set(color.FgYellow)
 		log.Println(v...)
 		color.Unset()
-	case LogChannel.Warning:
+	case LogWarning:
 		color.Set(color.FgHiYellow)
 		log.Println(v...)
 		color.Unset()
@@ -128,18 +129,18 @@ func (duder *DuderBot) Log(channel uint8, v ...interface{}) {
 
 // Logf description
 func (duder *DuderBot) Logf(channel uint8, format string, v ...interface{}) {
-	if channel == LogChannel.Verbose && !duder.debug {
+	if channel == LogVerbose && !duder.debug {
 		return
 	}
 
 	msg := fmt.Sprintf(format, v...)
 
 	switch channel {
-	case LogChannel.Verbose:
+	case LogVerbose:
 		color.Set(color.FgYellow)
 		log.Println(msg)
 		color.Unset()
-	case LogChannel.Warning:
+	case LogWarning:
 		color.Set(color.FgHiYellow)
 		log.Println(msg)
 		color.Unset()
@@ -170,12 +171,12 @@ func (duder *DuderBot) Update(message *discordgo.MessageCreate) {
 		duder.Discord.SendMessageToChannel(message.ChannelID, fmt.Sprintf("%s, you don't have permissions for that.", message.Author.Username))
 	}
 
-	duder.Logf(LogChannel.General, "Running update command '%s'", duder.Config.UpdateExec())
+	duder.Logf(LogGeneral, "Running update command '%s'", duder.Config.UpdateExec())
 	output, err := exec.Command(duder.Config.UpdateExec()).CombinedOutput()
 	if err != nil {
-		duder.Logf(LogChannel.Warning, "Error running update command; %s", err.Error())
+		duder.Logf(LogWarning, "Error running update command; %s", err.Error())
 	} else {
-		duder.Logf(LogChannel.General, "Update command exited with '%s'", string(output))
+		duder.Logf(LogGeneral, "Update command exited with '%s'", string(output))
 	}
 }
 

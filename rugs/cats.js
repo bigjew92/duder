@@ -25,9 +25,7 @@ cats.addCommand("catpic", function(cmd) {
 	var r = Math.getRandomInRange(0, this.imageTypes.length - 1);
 	var type = this.imageTypes[r];
 
-	var url = "http://thecatapi.com/api/images/get?format=xml&type={0}".format(
-		type
-	);
+	var url = "http://thecatapi.com/api/images/get?format=xml&type={0}".format(type);
 
 	this.showPic(cmd, url);
 });

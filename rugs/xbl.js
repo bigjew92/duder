@@ -108,14 +108,11 @@ xbl.getUserProfileCache = function(guildID, XUID) {
 	for (var i = 0; i < this.storage[guildID].users.length; i++) {
 		var user = this.storage[guildID].users[i];
 		if (user.XUID === XUID) {
-			if (
-				user.profileCache === undefined ||
-				user.profileCacheUpdated === undefined
-			) {
+			if (user.profileCache === undefined || user.profileCacheUpdated === undefined) {
 				return false;
 			}
 			var age = Date.now() - user.profileCacheUpdated;
-			// convert to minutes
+			// convert to hours
 			age /= 1000 * 60 * 60;
 			this.dprint("profile cache is {0} hours old".format(age));
 			return age > 1 ? false : user.profileCache;
@@ -177,28 +174,20 @@ xbl.addCommand("xbl", function(cmd) {
 		}
 		Duder.startTyping(cmd.channelID);
 		var gamertag = cmd.args[2];
-		var url = "https://xbl.io/api/v2/friends/search?gt={0}".format(
-			gamertag.replaceAll(" ", "%20")
-		);
+		var url = "https://xbl.io/api/v2/friends/search?gt={0}".format(gamertag.replaceAll(" ", "%20"));
 		this.dprint(url);
 		var content = HTTP.get(10, url, headers);
 		//this.dprint(content);
 		json = JSON.parse(content);
 		if (json.profileUsers === undefined) {
-			cmd.replyToAuthor(
-				"unable to link gamertag **{0}**".format(gamertag)
-			);
+			cmd.replyToAuthor("unable to link gamertag **{0}**".format(gamertag));
 		}
 		profile = json.profileUsers[0];
 		for (var i = 0; i < profile.settings.length; i++) {
 			var setting = profile.settings[i];
 			if (setting.id === "Gamertag" && setting.value === gamertag) {
 				this.setUserXUID(cmd.guildID, cmd.author.id, profile.id);
-				this.setUserProfileCache(
-					cmd.guildID,
-					profile.id,
-					this.parseProfileSettings(profile.settings)
-				);
+				this.setUserProfileCache(cmd.guildID, profile.id, this.parseProfileSettings(profile.settings));
 				cmd.replyToAuthor("link successful :link:");
 				return;
 			}
@@ -213,11 +202,7 @@ xbl.addCommand("xbl", function(cmd) {
 			}
 			XUID = this.getUserXUID(cmd.guildID, cmd.mentions[0].id);
 			if (XUID === false) {
-				cmd.replyToAuthor(
-					"{0} hasn't linked their gamertag".format(
-						cmd.mentions[0].username
-					)
-				);
+				cmd.replyToAuthor("{0} hasn't linked their gamertag".format(cmd.mentions[0].username));
 				return;
 			}
 		}
@@ -252,10 +237,7 @@ xbl.addCommand("xbl", function(cmd) {
 		embed.addField(":trophy: Gamerscore", profile.Gamerscore);
 		cmd.replyToChannelEmbed(embed.compile());
 	} else if (action === "list") {
-		if (
-			this.storage[cmd.guildID] === undefined ||
-			this.storage[cmd.guildID].users === undefined
-		) {
+		if (this.storage[cmd.guildID] === undefined || this.storage[cmd.guildID].users === undefined) {
 			cmd.replyToAuthor("no one has linked their accounts :confused:");
 		} else {
 			var users = [];
@@ -264,9 +246,7 @@ xbl.addCommand("xbl", function(cmd) {
 				users.push(user.XUID);
 			}
 			if (users.length > 0) {
-				var url = "https://xbl.io/api/v1/[{0}]/presence".format(
-					users.join(",")
-				);
+				var url = "https://xbl.io/api/v1/[{0}]/presence".format(users.join(","));
 				//url = "https://xbl.io/api/v2/presence";
 				//url = encodeURI(url);
 				this.dprint(url);

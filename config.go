@@ -38,13 +38,13 @@ func (manager *ConfigManager) Load() error {
 	if len(manager.path) == 0 {
 		return errors.New("configuration file isn't defined")
 	}
-	Duder.Logf(LogChannel.General, "Loading configuration file '%s'", manager.path)
+	Duder.Logf(LogGeneral, "Loading configuration file '%s'", manager.path)
 
 	var config Config
 
 	// check if the file exists
 	if _, err := os.Stat(manager.path); os.IsNotExist(err) {
-		Duder.Log(LogChannel.General, "Configuration file not found; creating new one...")
+		Duder.Log(LogGeneral, "Configuration file not found; creating new one...")
 
 		// defaults
 		config = Config{
@@ -62,7 +62,7 @@ func (manager *ConfigManager) Load() error {
 
 		manager.data = config
 
-		Duder.Logf(LogChannel.General, "Created configuration file '%s'", manager.path)
+		Duder.Logf(LogGeneral, "Created configuration file '%s'", manager.path)
 
 		// save the default configuration
 		if err := manager.Save(); err != nil {
@@ -81,7 +81,7 @@ func (manager *ConfigManager) Load() error {
 		manager.data = config
 	}
 
-	Duder.Log(LogChannel.Verbose, "Configuration file successfully loaded")
+	Duder.Log(LogVerbose, "Configuration file successfully loaded")
 
 	return nil
 }
@@ -91,7 +91,7 @@ func (manager *ConfigManager) Save() error {
 	if len(manager.path) == 0 {
 		return errors.New("configuration file isn't defined")
 	}
-	Duder.Logf(LogChannel.General, "Saving configuration file '%s'", manager.path)
+	Duder.Logf(LogGeneral, "Saving configuration file '%s'", manager.path)
 
 	bytes, err := json.MarshalIndent(manager.data, "", "\t")
 	if err != nil {
@@ -101,7 +101,7 @@ func (manager *ConfigManager) Save() error {
 		return fmt.Errorf("unable to save configuration file '%s'; %s", manager.path, err.Error())
 	}
 
-	Duder.Logf(LogChannel.Verbose, "Configuration file '%s' successfully saved", manager.path)
+	Duder.Logf(LogVerbose, "Configuration file '%s' successfully saved", manager.path)
 
 	return nil
 }

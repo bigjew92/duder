@@ -9,9 +9,7 @@ funbox.addCommand("dice", function(cmd) {
 		}
 	}
 	r = Math.getRandomInRange(2, sides);
-	cmd.replyToAuthor(
-		"rolled a " + sides + " sided :game_die: and got " + r + "."
-	);
+	cmd.replyToAuthor("rolled a " + sides + " sided :game_die: and got " + r + ".");
 });
 
 funbox.eightBallResponses = [
@@ -39,11 +37,7 @@ funbox.eightBallResponses = [
 
 funbox.addCommand("8ball", function(cmd) {
 	var r = Math.getRandomInRange(0, this.eightBallResponses.length - 1);
-	cmd.replyToAuthor(
-		"I rub my magic :8ball: balls and the response is `" +
-			this.eightBallResponses[r] +
-			"`."
-	);
+	cmd.replyToAuthor("I rub my magic :8ball: balls and the response is `" + this.eightBallResponses[r] + "`.");
 });
 
 funbox.addCommand("lebowski", function(cmd) {
@@ -51,10 +45,7 @@ funbox.addCommand("lebowski", function(cmd) {
 	var result;
 	var json;
 	if (cmd.args.length > 1) {
-		content = HTTP.get(
-			4,
-			"http://lebowski.me/api/quotes/search?term=" + cmd.args[1]
-		);
+		content = HTTP.get(4, "http://lebowski.me/api/quotes/search?term=" + cmd.args[1]);
 		json = JSON.parse(content);
 		if (json.results.length === 0) {
 			cmd.replyToChannel("¯\\_(ツ)_/¯");
@@ -80,9 +71,7 @@ funbox.addCommand("lebowski", function(cmd) {
 
 funbox.addCommand("bash", function(cmd) {
 	var content = HTTP.get(4, "http://bash.org/?random1");
-	var id = content.match(
-		'(?s)title="Permanent link to this quote."><b>.+?</b></a>'
-	);
+	var id = content.match('(?s)title="Permanent link to this quote."><b>.+?</b></a>');
 	id = id[0].substring(42);
 	id = id.substring(0, id.length - 8);
 	var link = "<http://bash.org/?quote=" + id + ">";

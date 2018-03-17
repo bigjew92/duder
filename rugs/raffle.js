@@ -101,9 +101,7 @@ raffle.addCommand("raffle", function(cmd) {
 
 	if (action === "status") {
 		if (this.getActive(cmd.guildID) === true) {
-			var joined = this.hasParticipant(cmd.guildID, cmd.author.id)
-				? "already"
-				: "not";
+			var joined = this.hasParticipant(cmd.guildID, cmd.author.id) ? "already" : "not";
 			cmd.replyToAuthor(
 				"you have " +
 					joined +
@@ -120,28 +118,17 @@ raffle.addCommand("raffle", function(cmd) {
 		}
 	} else if (action === "start" || action === "new") {
 		if (this.getActive(cmd.guildID) === true) {
-			cmd.replyToAuthor(
-				'the raffle *"' +
-					this.getDescription(cmd.guildID) +
-					"\"* hasn't finished yet."
-			);
+			cmd.replyToAuthor('the raffle *"' + this.getDescription(cmd.guildID) + "\"* hasn't finished yet.");
 			return;
 		} else if (cmd.args.length < 3) {
-			cmd.replyToAuthor(
-				'you need to provide a description `raffle start "Awesome raffle!"`.'
-			);
+			cmd.replyToAuthor('you need to provide a description `raffle start "Awesome raffle!"`.');
 			return;
 		}
 		this.setActive(cmd.guildID, true);
 		this.setCreator(cmd.guildID, cmd.author.id);
 		this.setDescription(cmd.guildID, cmd.args[2]);
 		this.clearParticipants(cmd.guildID);
-		cmd.replyToChannel(
-			cmd.author.username +
-				' has started raffle *"' +
-				this.getDescription(cmd.guildID) +
-				'"*.'
-		);
+		cmd.replyToChannel(cmd.author.username + ' has started raffle *"' + this.getDescription(cmd.guildID) + '"*.');
 	} else if (action === "join" || action === "j" || action === "enter") {
 		if (this.getActive(cmd.guildID) === false) {
 			cmd.replyToAuthor("there aren't any raffles to join.");
@@ -161,19 +148,12 @@ raffle.addCommand("raffle", function(cmd) {
 			return;
 		}
 
-		var msg =
-			'The raffle *"' +
-			this.getDescription(cmd.guildID) +
-			'"* has ended! ';
+		var msg = 'The raffle *"' + this.getDescription(cmd.guildID) + '"* has ended! ';
 
 		if (this.participantCount(cmd.guildID) === 0) {
-			msg +=
-				"but there weren't any participants so no one wins :face_palm:";
+			msg += "but there weren't any participants so no one wins :face_palm:";
 		} else {
-			var r = Math.getRandomInRange(
-				0,
-				this.storage[cmd.guildID].participants.length - 1
-			);
+			var r = Math.getRandomInRange(0, this.storage[cmd.guildID].participants.length - 1);
 			var winnerID = this.storage[cmd.guildID].participants[r];
 			msg += "<@" + winnerID + "> won :rotating_light::fireworks::mega:";
 		}

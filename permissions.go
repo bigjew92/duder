@@ -56,18 +56,18 @@ func (manager *PermissionsManager) Load() error {
 		return errors.New("permissions file isn't defined")
 	}
 
-	Duder.Logf(LogChannel.General, "Loading permissions file '%s'", path)
+	Duder.Logf(LogGeneral, "Loading permissions file '%s'", path)
 
 	// check if the file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		Duder.Log(LogChannel.General, "Permissions file not found; creating new one...")
+		Duder.Log(LogGeneral, "Permissions file not found; creating new one...")
 
 		// create the configuration file
 		if err := ioutil.WriteFile(path, []byte("{}"), 0644); err != nil {
 			return fmt.Errorf("unable to create permissions file '%s'; %s", path, err.Error())
 		}
 
-		Duder.Logf(LogChannel.General, "Permissions file '%s' created", path)
+		Duder.Logf(LogGeneral, "Permissions file '%s' created", path)
 	} else {
 		var bytes []byte
 		if bytes, err = ioutil.ReadFile(path); err != nil {
@@ -79,7 +79,7 @@ func (manager *PermissionsManager) Load() error {
 		}
 	}
 
-	Duder.Log(LogChannel.Verbose, "Permissions file successfully loaded")
+	Duder.Log(LogVerbose, "Permissions file successfully loaded")
 
 	return nil
 }

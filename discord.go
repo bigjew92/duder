@@ -29,7 +29,7 @@ type DiscordManager struct {
 // Connect description
 func (manager *DiscordManager) Connect() error {
 	// create the Discord session
-	Duder.Logf(LogChannel.General, "Creating Discord session with token '%v'", Duder.Config.BotToken())
+	Duder.Logf(LogGeneral, "Creating Discord session with token '%v'", Duder.Config.BotToken())
 	session, err := discordgo.New(Duder.Config.BotToken())
 	if err != nil {
 		return fmt.Errorf("Error creating discord session; %s", err)
@@ -37,28 +37,31 @@ func (manager *DiscordManager) Connect() error {
 	manager.session = session
 
 	// obtain bot account details
-	Duder.Log(LogChannel.General, "Obtaining bot account details")
+	Duder.Log(LogGeneral, "Obtaining bot account details")
 	me, err := manager.session.User("@me")
 	if err != nil {
 		return fmt.Errorf("Error obtaining bot account details; %s", err)
 	}
 	manager.me = me
-	Duder.Log(LogChannel.General, "> Bot Client ID:", manager.me.ID)
+	Duder.Log(LogGeneral, "> Bot Client ID:", manager.me.ID)
 
 	// obtain owner account details
-	Duder.Log(LogChannel.General, "Obtaining owner account details")
+	Duder.Log(LogGeneral, "Obtaining owner account details")
 	owner, err := manager.session.User(Duder.Config.OwnerID())
 	if err != nil {
 		return fmt.Errorf("Error obtaining owner account details; %s", err)
 	}
 	manager.owner = owner
-	Duder.Log(LogChannel.General, "> Owner Client ID:", manager.owner.ID)
+	Duder.Log(LogGeneral, "> Owner Client ID:", manager.owner.ID)
 
-	// register callback for messageCreate
+	// register callbacks
 	manager.session.AddHandler(manager.onMessageCreate)
+	manager.session.AddHandler(manager.onMessageReactionAdd)
+	manager.session.AddHandler(manager.onMessageReactionRemove)
+	manager.session.AddHandler(manager.onPresenceUpdate)
 
 	// open the Discord connection
-	Duder.Log(LogChannel.General, "Opening Discord connection")
+	Duder.Log(LogGeneral, "Opening Discord connection")
 	err = manager.session.Open()
 	if err != nil {
 		return fmt.Errorf("Error opening discord connection; %s", err)
@@ -90,6 +93,43 @@ func (manager *DiscordManager) SetMemberNickname(guildID string, memberID string
 	manager.session.GuildMemberNickname(guildID, memberID, nickname)
 }
 
+// GetMemberNickname description
+func (manager *DiscordManager) GetMemberNickname(guildID string, userID string) (string, bool) {
+	//manager.session.GuildMemberNickname(guildID, memberID, nickname)
+	member, ok := manager.GetGuildMember(guildID, userID)
+	if !ok {
+		return "Unknown", false
+	}
+
+	if len(member.Nick) == 0 {
+		return member.User.Username, true
+	}
+
+	return member.Nick, true
+}
+
+// GetMemberByNickname description
+func (manager *DiscordManager) GetMemberByNickname(guildID string, nickname string) (*discordgo.Member, bool) {
+	guild, ok := manager.GetGuildByID(guildID)
+	if !ok {
+		return nil, false
+	}
+
+	nickname = strings.ToLower(nickname)
+
+	for _, member := range guild.Members {
+		if len(member.Nick) > 0 {
+			if strings.ToLower(member.Nick) == nickname {
+				return member, true
+			}
+		} else if strings.ToLower(member.User.Username) == nickname {
+			return member, true
+		}
+	}
+
+	return nil, false
+}
+
 // GetGuildByID description
 func (manager *DiscordManager) GetGuildByID(guildID string) (*discordgo.Guild, bool) {
 	guild, err := manager.session.Guild(guildID)
@@ -117,7 +157,30 @@ func (manager *DiscordManager) GetMessageGuild(message *discordgo.MessageCreate)
 
 // GetMessageChannel description
 func (manager *DiscordManager) GetMessageChannel(message *discordgo.MessageCreate) (*discordgo.Channel, bool) {
-	channel, err := manager.session.Channel(message.ChannelID)
+	channel, ok := manager.GetChannelByID(message.ChannelID)
+	if !ok {
+		return nil, false
+	}
+
+	return channel, true
+}
+
+// GetGuildByChannelID description
+func (manager *DiscordManager) GetGuildByChannelID(channelID string) (*discordgo.Guild, bool) {
+	channel, ok := manager.GetChannelByID(channelID)
+	if !ok {
+		return nil, false
+	}
+	guild, ok := manager.GetGuildByID(channel.GuildID)
+	if !ok {
+		return nil, false
+	}
+	return guild, true
+}
+
+// GetChannelByID description
+func (manager *DiscordManager) GetChannelByID(channelID string) (*discordgo.Channel, bool) {
+	channel, err := manager.session.Channel(channelID)
 	if err != nil {
 		return nil, false
 	}
@@ -176,7 +239,7 @@ func (manager *DiscordManager) SendFileToChannel(channelID string, name string, 
 
 // SetStatus description
 func (manager *DiscordManager) SetStatus(status string) bool {
-	Duder.Logf(LogChannel.Verbose, "[Duder.SetStatus] Setting status to '%s'", status)
+	Duder.Logf(LogVerbose, "[Duder.SetStatus] Setting status to '%s'", status)
 	if err := manager.session.UpdateStatus(0, status); err != nil {
 		return false
 	}
@@ -186,7 +249,7 @@ func (manager *DiscordManager) SetStatus(status string) bool {
 // StartTyping description
 func (manager *DiscordManager) StartTyping(channelID string) bool {
 	if err := manager.session.ChannelTyping(channelID); err != nil {
-		Duder.Logf(LogChannel.Verbose, "[Duder.StartTyping] Unable to start typing in channel '%s'; %s", channelID, err.Error())
+		Duder.Logf(LogVerbose, "[Duder.StartTyping] Unable to start typing in channel '%s'; %s", channelID, err.Error())
 		return false
 	}
 	return true
@@ -195,7 +258,7 @@ func (manager *DiscordManager) StartTyping(channelID string) bool {
 // SetAvatarByImage description
 func (manager *DiscordManager) SetAvatarByImage(base64 string) bool {
 	if _, err := manager.session.UserUpdate("", "", "", base64, ""); err != nil {
-		Duder.Log(LogChannel.Verbose, "[Duder.SetAvatarByImage] Unable to set avatar;", err.Error())
+		Duder.Log(LogVerbose, "[Duder.SetAvatarByImage] Unable to set avatar;", err.Error())
 		return false
 	}
 
@@ -205,7 +268,7 @@ func (manager *DiscordManager) SetAvatarByImage(base64 string) bool {
 // SaveAvatar description
 func (manager *DiscordManager) SaveAvatar(filename string) error {
 	if len(filename) == 0 {
-		Duder.Log(LogChannel.Verbose, "[Duder.SaveAvatar] Unable to save avatar; no filename provided")
+		Duder.Log(LogVerbose, "[Duder.SaveAvatar] Unable to save avatar; no filename provided")
 		return errors.New("no filename provided")
 	}
 
@@ -227,7 +290,7 @@ func (manager *DiscordManager) SaveAvatar(filename string) error {
 	req := http.Client{Timeout: time.Duration(5 * time.Second)}
 	resp, err := req.Get(baseURL)
 	if err != nil {
-		Duder.Log(LogChannel.Verbose, "[Duder.SaveAvatar] Unable to save avatar;", err.Error())
+		Duder.Log(LogVerbose, "[Duder.SaveAvatar] Unable to save avatar;", err.Error())
 		return err
 	}
 	defer resp.Body.Close()
@@ -238,11 +301,11 @@ func (manager *DiscordManager) SaveAvatar(filename string) error {
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Duder.Log(LogChannel.Verbose, "[Duder.SaveAvatar] Unable to read response body;", err.Error())
+		Duder.Log(LogVerbose, "[Duder.SaveAvatar] Unable to read response body;", err.Error())
 		return err
 	}
 	if err = ioutil.WriteFile(fmt.Sprintf("%s/%s", "avatars", filename), data, 0777); err != nil {
-		Duder.Log(LogChannel.Verbose, "[Duder.SaveAvatar] Unable to write file;", err.Error())
+		Duder.Log(LogVerbose, "[Duder.SaveAvatar] Unable to write file;", err.Error())
 		return err
 	}
 
@@ -271,26 +334,26 @@ func (manager *DiscordManager) Avatars() []string {
 // SetAvatarByFile description
 func (manager *DiscordManager) SetAvatarByFile(filename string) error {
 	if _, err := os.Stat("avatars"); os.IsNotExist(err) {
-		Duder.Log(LogChannel.Verbose, "[Duder.SetAvatarByFile] Unable to set avatar; avatar path missing")
+		Duder.Log(LogVerbose, "[Duder.SetAvatarByFile] Unable to set avatar; avatar path missing")
 		return errors.New("avatars path missing")
 	}
 
 	filePath := fmt.Sprintf("%s/%s", "avatars", filename)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		Duder.Logf(LogChannel.Verbose, "[Duder.SetAvatarByFile] Unable to set avatar; file '%s' doesn't exist", filePath)
+		Duder.Logf(LogVerbose, "[Duder.SetAvatarByFile] Unable to set avatar; file '%s' doesn't exist", filePath)
 		return errors.New("file doesn't exist")
 	}
 
 	var bytes []byte
 	var err error
 	if bytes, err = ioutil.ReadFile(filePath); err != nil {
-		Duder.Logf(LogChannel.Verbose, "[Duder.SetAvatarByFile] Couldn't read avatar file '%s'; %s", filePath, err.Error())
+		Duder.Logf(LogVerbose, "[Duder.SetAvatarByFile] Couldn't read avatar file '%s'; %s", filePath, err.Error())
 		return errors.New("couldn't read avatar file")
 	}
 	base64 := base64.StdEncoding.EncodeToString(bytes)
 	avatar := fmt.Sprintf("data:%s;base64,%s", http.DetectContentType(bytes), base64)
 	if ok := manager.SetAvatarByImage(avatar); !ok {
-		Duder.Log(LogChannel.Verbose, "[Duder.SetAvatarByFile] Couldn't set avatar")
+		Duder.Log(LogVerbose, "[Duder.SetAvatarByFile] Couldn't set avatar")
 		return errors.New("couldn't set avatar")
 	}
 
@@ -366,15 +429,65 @@ func (manager *DiscordManager) onMessageCreate(session *discordgo.Session, messa
 			return
 		}
 		cmd := strings.ToLower(args[0])
-		Duder.Logf(LogChannel.Verbose, "Root command '%s'", cmd)
+		Duder.Logf(LogVerbose, "Root command '%s'", cmd)
 
-		Duder.Logf(LogChannel.Verbose, "Command in %s(%s:%s) from %s(%s): %s", channel.Name, channel.ID, manager.ChannelTypeName(channel), message.Author.Username, message.Author.ID, message.Content)
+		Duder.Logf(LogVerbose, "Command in %s(%s:%s) from %s(%s): %s", channel.Name, channel.ID, manager.ChannelTypeName(channel), message.Author.Username, message.Author.ID, message.Content)
 		// check for internal commands first
 		if !manager.runCommand(message, cmd, args) {
 			// run rug commands
 			Duder.Rugs.RunCommand(message, cmd, args)
 		}
 	}
+}
+
+// onMessageReactionAdd description
+func (manager *DiscordManager) onMessageReactionAdd(session *discordgo.Session, reaction *discordgo.MessageReactionAdd) {
+	guild, ok := manager.GetGuildByChannelID(reaction.ChannelID)
+	if !ok {
+		return
+	}
+	message, err := manager.session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+	if err != nil {
+		return
+	}
+	instigator, ok := manager.GetGuildMember(guild.ID, reaction.UserID)
+	if !ok {
+		return
+	}
+
+	Duder.Rugs.OnMessageReactionAdd(guild, message, instigator.User, reaction.MessageReaction)
+}
+
+// onMessageReactionRemove description
+func (manager *DiscordManager) onMessageReactionRemove(session *discordgo.Session, reaction *discordgo.MessageReactionRemove) {
+	guild, ok := manager.GetGuildByChannelID(reaction.ChannelID)
+	if !ok {
+		return
+	}
+	message, err := manager.session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+	if err != nil {
+		return
+	}
+	instigator, ok := manager.GetGuildMember(guild.ID, reaction.UserID)
+	if !ok {
+		return
+	}
+
+	Duder.Rugs.OnMessageReactionRemove(guild, message, instigator.User, reaction.MessageReaction)
+}
+
+// onPresenceUpdate description
+func (manager *DiscordManager) onPresenceUpdate(session *discordgo.Session, presence *discordgo.PresenceUpdate) {
+	guild, ok := manager.GetGuildByID(presence.GuildID)
+	if !ok {
+		return
+	}
+	member, ok := manager.GetGuildMember(presence.GuildID, presence.User.ID)
+	if !ok {
+		return
+	}
+
+	Duder.Rugs.OnPresenceUpdate(guild, member.User, presence)
 }
 
 // runCommand description

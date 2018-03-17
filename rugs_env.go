@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -20,7 +21,7 @@ import (
 func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 	name := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 	name = strings.Replace(name, "main.", "__duder_", -1)
-	Duder.Log(LogChannel.Verbose, "[Rugs.BindRugFunction] Binding", name)
+	Duder.Log(LogVerbose, "[Rugs.BindRugFunction] Binding", name)
 	Duder.Rugs.VM.Set(name, f)
 	return name
 }
@@ -46,16 +47,23 @@ func createRugEnvironment() error {
 		bindRugFunction(rugenvRugUserGetIsModerator),
 		bindRugFunction(rugenvRugUserSetNickname),
 		bindRugFunction(rugenvRugUserGetUsernameByID),
+		bindRugFunction(rugenvRugUserGetIDByNickname),
 		/* DuderCommand */
 		bindRugFunction(rugenvRugCommandReplyToChannel),
 		bindRugFunction(rugenvRugCommandReplyToChannelEmbed),
 		bindRugFunction(rugenvRugCommandReplyToAuthor),
 		bindRugFunction(rugenvRugCommandDeleteMessage),
 		bindRugFunction(rugenvRugCommandSendFile),
+		/* DuderMessageReaction */
+		bindRugFunction(rugenvRugCommandReplyToChannel),
+		bindRugFunction(rugenvRugCommandReplyToChannelEmbed),
 		/* DuderRug */
 		bindRugFunction(rugenvRugCreate),
 		bindRugFunction(rugenvRugAddCommand),
-		bindRugFunction(rugenvRugOnMessage),
+		bindRugFunction(rugenvRugBindOnMessage),
+		bindRugFunction(rugenvRugBindOnMessageReactionAdd),
+		bindRugFunction(rugenvRugBindOnMessageReactionRemove),
+		bindRugFunction(rugenvRugBindOnPresenceUpdate),
 		bindRugFunction(rugenvRugLoadStorage),
 		bindRugFunction(rugenvRugSaveStorage),
 		bindRugFunction(rugenvRugDPrint),
@@ -76,6 +84,8 @@ func createRugEnvironment() error {
 		//fmt.Print(env)
 		return errors.New(err.Error())
 	}
+
+	Duder.Rugs.VM.Set("print", func(msg string) { log.Println("[JS]", msg) })
 
 	return nil
 }
@@ -187,6 +197,18 @@ func rugenvRugUserGetUsernameByID(call otto.FunctionCall) otto.Value {
 	return response(member.User.Username, otto.FalseValue())
 }
 
+func rugenvRugUserGetIDByNickname(call otto.FunctionCall) otto.Value {
+	guildID := call.Argument(0).String()
+	nickname := call.Argument(1).String()
+
+	member, ok := Duder.Discord.GetMemberByNickname(guildID, nickname)
+	if !ok {
+		return otto.FalseValue()
+	}
+
+	return response(member.User.ID, otto.FalseValue())
+}
+
 /* DuderCommand */
 func rugenvRugCommandReplyToChannel(call otto.FunctionCall) otto.Value {
 	channelID := call.Argument(0).String()
@@ -203,7 +225,7 @@ func rugenvRugCommandReplyToChannelEmbed(call otto.FunctionCall) otto.Value {
 	jsonData := call.Argument(1).String()
 
 	if err := Duder.Discord.SendEmbedToChannel(channelID, jsonData); err != nil {
-		Duder.Log(LogChannel.Verbose, "[cmd.replyToChannelEmbed] Failed to create embed", err.Error())
+		Duder.Log(LogVerbose, "[cmd.replyToChannelEmbed] Failed to create embed", err.Error())
 		return otto.FalseValue()
 	}
 
@@ -271,12 +293,45 @@ func rugenvRugAddCommand(call otto.FunctionCall) otto.Value {
 	return otto.TrueValue()
 }
 
-func rugenvRugOnMessage(call otto.FunctionCall) otto.Value {
+func rugenvRugBindOnMessage(call otto.FunctionCall) otto.Value {
 	rugObj := call.Argument(0).Object()
 	onMessage := call.Argument(1)
 
 	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
 		rug.BindOnMessage(onMessage)
+	}
+
+	return otto.TrueValue()
+}
+
+func rugenvRugBindOnPresenceUpdate(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	onPresenceUpdate := call.Argument(1)
+
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.BindOnPresenceUpdate(onPresenceUpdate)
+	}
+
+	return otto.TrueValue()
+}
+
+func rugenvRugBindOnMessageReactionAdd(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	onMessageReactionAdd := call.Argument(1)
+
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.BindOnMessageReactionAdd(onMessageReactionAdd)
+	}
+
+	return otto.TrueValue()
+}
+
+func rugenvRugBindOnMessageReactionRemove(call otto.FunctionCall) otto.Value {
+	rugObj := call.Argument(0).Object()
+	onMessageReactionRemove := call.Argument(1)
+
+	if rug, ok := Duder.Rugs.FindRugByObject(rugObj); ok {
+		rug.BindOnMessageReactionRemove(onMessageReactionRemove)
 	}
 
 	return otto.TrueValue()
@@ -351,29 +406,29 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	for k, v := range headers.(map[string]interface{}) {
 		if value, ok := v.(string); ok {
 			req.Header.Add(k, value)
-			Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Adding header '%s' : '%s'", k, value)
+			Duder.Logf(LogVerbose, "[HTTP.Get] Adding header '%s' : '%s'", k, value)
 		}
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Error retrieving response; %s", err.Error())
+		Duder.Logf(LogVerbose, "[HTTP.Get] Error retrieving response; %s", err.Error())
 		return otto.FalseValue()
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Duder.Logf(LogChannel.Verbose, "[HTTP.Get] Error reading response body; %s", err.Error())
+		Duder.Logf(LogVerbose, "[HTTP.Get] Error reading response body; %s", err.Error())
 		return otto.FalseValue()
 	}
 
 	if stringResult {
-		Duder.Log(LogChannel.Verbose, "[HTTP.Get] Returning string")
+		Duder.Log(LogVerbose, "[HTTP.Get] Returning string")
 		return response(string(body), otto.FalseValue())
 	}
 
-	Duder.Log(LogChannel.Verbose, "[HTTP.Get] Returning byte array")
+	Duder.Log(LogVerbose, "[HTTP.Get] Returning byte array")
 	return response(body, otto.FalseValue())
 }
 
@@ -388,20 +443,20 @@ func rugenvHTTPPost(call otto.FunctionCall) otto.Value {
 	for k, v := range values.(map[string]interface{}) {
 		if value, ok := v.(string); ok {
 			formValues[k] = []string{value}
-			Duder.Logf(LogChannel.Verbose, "[HTTP.Post] Adding form value '%s' : '%s'", k, value)
+			Duder.Logf(LogVerbose, "[HTTP.Post] Adding form value '%s' : '%s'", k, value)
 		}
 	}
 
 	resp, err := client.PostForm(uri, formValues)
 	if err != nil {
-		Duder.Logf(LogChannel.Verbose, "[HTTP.Post] Error posting form; %s", err.Error())
+		Duder.Logf(LogVerbose, "[HTTP.Post] Error posting form; %s", err.Error())
 		return otto.FalseValue()
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		Duder.Logf(LogChannel.Verbose, "[HTTP.Post] Error reading response body; %s", err.Error())
+		Duder.Logf(LogVerbose, "[HTTP.Post] Error reading response body; %s", err.Error())
 		return otto.FalseValue()
 	}
 

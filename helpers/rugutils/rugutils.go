@@ -8,7 +8,7 @@ import (
 )
 
 // ConvertMentions description
-func ConvertMentions(message *discordgo.MessageCreate) string {
+func ConvertMentions(guildID string, message *discordgo.MessageCreate) string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("new Array( ")
@@ -16,7 +16,7 @@ func ConvertMentions(message *discordgo.MessageCreate) string {
 		if i > 0 {
 			buffer.WriteString(", ")
 		}
-		buffer.WriteString(fmt.Sprintf("new DuderUser(\"%s\",\"%s\",\"%s\")", message.ChannelID, mention.ID, mention.Username))
+		buffer.WriteString(fmt.Sprintf("new DuderUser(\"%s\",\"%s\",\"%s\")", guildID, mention.ID, mention.Username))
 	}
 	buffer.WriteString(" )")
 	return buffer.String()

@@ -28,10 +28,22 @@ function DuderUser(guildID, id, username) {
 	this.isModerator = __BIND__(guildID, id);
 }
 DuderUser.prototype.setNickname = function(guildID, nickname) {
+	if (guildID === undefined || nickname === undefined) {
+		return false;
+	}
 	return __BIND__(guildID, this.id, nickname);
 };
 DuderUser.getUsernameByID = function(guildID, userID) {
+	if (guildID === undefined || userID === undefined) {
+		return false;
+	}
 	return __BIND__(guildID, userID);
+};
+DuderUser.getIDbyNickname = function(guildID, nickname) {
+	if (guildID === undefined || nickname === undefined) {
+		return false;
+	}
+	return __BIND__(guildID, nickname);
 };
 
 // Define DuderCommand class
@@ -52,13 +64,7 @@ DuderCommand.prototype.replyToChannelEmbed = function(content) {
 DuderCommand.prototype.replyToAuthor = function(content, mention) {
 	// ensure 'mention' is bool and default is false
 	mention = mention === true;
-	__BIND__(
-		this.channelID,
-		this.author.id,
-		this.author.username,
-		content,
-		mention
-	);
+	__BIND__(this.channelID, this.author.id, this.author.username, content, mention);
 };
 DuderCommand.prototype.isMention = function(str) {
 	return str.substring(0, 2) === "<@" && str.substring(str.length - 1) === ">";
@@ -79,6 +85,32 @@ function DuderMessage(guildID, channelID, author, messageID, content) {
 	this.content = content;
 }
 
+// Define DuderMessageReaction class
+function DuderMessageReaction(guildID, channelID, message, instigator, emoji, add) {
+	this.guildID = guildID;
+	this.channelID = channelID;
+	this.message = message;
+	this.instigator = instigator;
+	this.emoji = emoji;
+	this.add = add;
+}
+DuderMessageReaction.prototype.replyToChannel = function(content) {
+	__BIND__(this.channelID, content);
+};
+DuderCommand.prototype.replyToChannelEmbed = function(content) {
+	__BIND__(this.channelID, content);
+};
+
+// Define DuderEmoji class
+function DuderEmoji(id, name, roles, managed, requireColons, animated) {
+	this.id = id;
+	this.name = name;
+	this.roles = roles;
+	this.managed = managed;
+	this.requireColons = requireColons;
+	this.animated = animated;
+}
+
 // Define DuderRug class
 function DuderRug(name, description) {
 	__BIND__(this, name, description);
@@ -88,6 +120,15 @@ DuderRug.prototype.addCommand = function(trigger, exec) {
 };
 DuderRug.prototype.onMessage = function(onMessage) {
 	__BIND__(this, onMessage);
+};
+DuderRug.prototype.onMessageReactionAdd = function(onMessageReactionAdd) {
+	__BIND__(this, onMessageReactionAdd);
+};
+DuderRug.prototype.onMessageReactionRemove = function(onMessageReactionRemove) {
+	__BIND__(this, onMessageReactionRemove);
+};
+DuderRug.prototype.onPresenceUpdate = function(onPresenceUpdate) {
+	__BIND__(this, onPresenceUpdate);
 };
 DuderRug.prototype.loadStorage = function() {
 	var data = __BIND__(this);
@@ -102,6 +143,9 @@ DuderRug.prototype.dprint = function(msg) {
 };
 DuderRug.prototype.wprint = function(msg) {
 	__BIND__(this, msg);
+};
+DuderRug.prototype.dprint_r = function(obj) {
+	this.dprint(JSON.stringify(obj));
 };
 
 // Math
@@ -233,10 +277,7 @@ EmbedMessage.prototype.setTimestamp = function() {
 	this.data.timestamp = dt.toISOString();
 };
 EmbedMessage.prototype.setFooter = function(icon, text) {
-	this.data.footer = '{\n\t\t"icon_url": "{0}",\n\t\t"text": "{1}"\n\t}'.format(
-		icon,
-		text
-	);
+	this.data.footer = '{\n\t\t"icon_url": "{0}",\n\t\t"text": "{1}"\n\t}'.format(icon, text);
 };
 EmbedMessage.prototype.setThumbnail = function(thumbnail) {
 	this.data.thumbnail = '{\n\t\t"url": "{0}"\n\t}'.format(thumbnail);
@@ -245,11 +286,7 @@ EmbedMessage.prototype.setImage = function(image) {
 	this.data.image = '{\n\t\t"url": "{0}"\n\t}'.format(image);
 };
 EmbedMessage.prototype.setAuthor = function(name, url, icon) {
-	this.data.author = '{\n\t\t"name": "{0}",\n\t\t"url": "{1}",\n\t\t"icon_url": "{2}"\n\t}'.format(
-		name,
-		url,
-		icon
-	);
+	this.data.author = '{\n\t\t"name": "{0}",\n\t\t"url": "{1}",\n\t\t"icon_url": "{2}"\n\t}'.format(name, url, icon);
 };
 EmbedMessage.prototype.addField = function(name, value) {
 	if (this.data.fields === null) {
@@ -267,9 +304,7 @@ EmbedMessage.prototype.compile = function() {
 		content += COMMA(content) + '\t"title": "{0}"'.format(this.data.title);
 	}
 	if (this.data.description !== null) {
-		content +=
-			COMMA(content) +
-			'\t"description": "{0}"'.format(this.data.description);
+		content += COMMA(content) + '\t"description": "{0}"'.format(this.data.description);
 	}
 	if (this.data.url !== null) {
 		content += COMMA(content) + '\t"url": "{0}"'.format(this.data.url);
@@ -278,15 +313,13 @@ EmbedMessage.prototype.compile = function() {
 		content += COMMA(content) + '\t"color": {0}'.format(this.data.color);
 	}
 	if (this.data.timestamp !== null) {
-		content +=
-			COMMA(content) + '\t"timestamp": "{0}"'.format(this.data.timestamp);
+		content += COMMA(content) + '\t"timestamp": "{0}"'.format(this.data.timestamp);
 	}
 	if (this.data.footer !== null) {
 		content += COMMA(content) + '\t"footer": {0}'.format(this.data.footer);
 	}
 	if (this.data.thumbnail !== null) {
-		content +=
-			COMMA(content) + '\t"thumbnail": {0}'.format(this.data.thumbnail);
+		content += COMMA(content) + '\t"thumbnail": {0}'.format(this.data.thumbnail);
 	}
 	if (this.data.image !== null) {
 		content += COMMA(content) + '\t"image": {0}'.format(this.data.image);
