@@ -53,11 +53,11 @@ reactionrank.addUserXP = function(guildID, userID) {
 		this.storage.guilds[guildID][userID].nextLevel = 10;
 	}
 
-	// xp every 2 minutes
+	// xp every minute
 	var age = Date.now() - this.storage.guilds[guildID][userID].lastXP;
 	// convert to minutes
 	age /= 1000 * 60;
-	if (age < 2) {
+	if (age < 1) {
 		return;
 	}
 
@@ -76,6 +76,23 @@ reactionrank.addUserXP = function(guildID, userID) {
 	this.saveStorage(this.storage);
 };
 
+reactionrank.getUserXP = function(guildID, userID) {
+	if (this.storage.guilds === undefined) {
+		return 0;
+	}
+	if (this.storage.guilds[guildID] === undefined) {
+		return 0;
+	}
+	if (this.storage.guilds[guildID][userID] === undefined) {
+		return 0;
+	}
+	if (this.storage.guilds[guildID][userID].xp === undefined) {
+		return 0;
+	}
+
+	return this.storage.guilds[guildID][userID].xp;
+};
+
 reactionrank.getUserLevel = function(guildID, userID) {
 	if (this.storage.guilds === undefined) {
 		return 0;
@@ -91,6 +108,23 @@ reactionrank.getUserLevel = function(guildID, userID) {
 	}
 
 	return this.storage.guilds[guildID][userID].level;
+};
+
+reactionrank.getUserNextLevel = function(guildID, userID) {
+	if (this.storage.guilds === undefined) {
+		return 0;
+	}
+	if (this.storage.guilds[guildID] === undefined) {
+		return 0;
+	}
+	if (this.storage.guilds[guildID][userID] === undefined) {
+		return 0;
+	}
+	if (this.storage.guilds[guildID][userID].nextLevel === undefined) {
+		return 0;
+	}
+
+	return this.storage.guilds[guildID][userID].nextLevel;
 };
 
 reactionrank.onMessageReactionAdd(function(reaction) {
@@ -121,4 +155,17 @@ reactionrank.onMessageReactionRemove(function(reaction) {
 	}
 	//this.dprint("removing");
 	this.modifyUserEmoji(reaction.guildID, reaction.message.author.id, reaction.emoji.name, -1);
+});
+
+
+reactionrank.addCommand("rank", function(cmd) {
+	var userID = cmd.author.id;
+
+	var xp = this.getUserXP(cmd.guildID, userID);
+	var level = this.getUserLevel(cmd.guildID, userID);
+	var nextLevel = this.getUserNextLevel(cmd.guildID, userID);
+
+	var percent = Math.floor((xp / nextLevel) * 100);
+
+	cmd.replyToAuthor("you are currently level {0} and {1}% to your next level".format(level, percent));
 });
