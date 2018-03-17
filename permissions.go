@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	Duder.Permissions = PermissionsManager{}
+	Duder.Permissions = new(PermissionsManager)
 }
 
 // GuildPermissions description

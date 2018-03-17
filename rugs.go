@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	Duder.Rugs = RugManager{}
+	Duder.Rugs = new(RugManager)
 	// create the JavaScript runtime
 	Duder.Rugs.VM = otto.New()
 

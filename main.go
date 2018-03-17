@@ -96,10 +96,10 @@ func main() {
 
 // DuderBot struct describes the DuderBot
 type DuderBot struct {
-	Config         ConfigManager
-	Discord        DiscordManager
-	Permissions    PermissionsManager
-	Rugs           RugManager
+	Config         *ConfigManager
+	Discord        *DiscordManager
+	Permissions    *PermissionsManager
+	Rugs           *RugManager
 	debug          bool
 	shutdownSignal chan os.Signal
 }

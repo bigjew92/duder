@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	Duder.Config = ConfigManager{}
+	Duder.Config = new(ConfigManager)
 }
 
 // Config description

@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	Duder.Discord = DiscordManager{}
+	Duder.Discord = new(DiscordManager)
 }
 
 // DiscordManager description
