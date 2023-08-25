@@ -13,7 +13,7 @@ import (
 	"github.com/foszor/duder/helpers/rugutils"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/go-fsnotify/fsnotify"
+	"github.com/fsnotify/fsnotify"
 	"github.com/robertkrimen/otto"
 )
 
