@@ -12,6 +12,10 @@ RUN go mod download
 # https://docs.docker.com/engine/reference/builder/#copy
 COPY . ./
 
+#Environment Variables
+ENV BOT_TOKEN ${BOT_TOKEN}
+ENV OWNERID ${OWNERID}
+
 # Build
 RUN go build -o /duder
 
