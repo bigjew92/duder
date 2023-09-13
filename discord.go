@@ -43,7 +43,7 @@ func (manager *DiscordManager) Connect() error {
 		return fmt.Errorf("Error obtaining bot account details; %s", err)
 	}
 	manager.me = me
-	Duder.Log(LogGeneral, "> Bot Client ID:", manager.me.ID)
+	Duder.Log(LogGeneral, "> Bot Client ID: ", manager.me.ID)
 
 	// obtain owner account details
 	Duder.Log(LogGeneral, "Obtaining owner account details")
@@ -52,7 +52,7 @@ func (manager *DiscordManager) Connect() error {
 		return fmt.Errorf("Error obtaining owner account details; %s", err)
 	}
 	manager.owner = owner
-	Duder.Log(LogGeneral, "> Owner Client ID:", manager.owner.ID)
+	Duder.Log(LogGeneral, "> Owner Client ID: ", manager.owner.ID)
 
 	// register callbacks
 	manager.session.AddHandler(manager.onMessageCreate)

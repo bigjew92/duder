@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/basgys/goxml2json"
+	xml2json "github.com/basgys/goxml2json"
 	"github.com/robertkrimen/otto"
 )
 
