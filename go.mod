@@ -1,4 +1,4 @@
-module github.com/foszor/duder
+module github.com/bigjew92/duder
 
 go 1.20
 
