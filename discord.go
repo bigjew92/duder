@@ -43,7 +43,7 @@ func (manager *DiscordManager) Connect() error {
 		return fmt.Errorf("Error obtaining bot account details; %s", err)
 	}
 	manager.me = me
-	Duder.Log(LogGeneral, "> Bot Client ID:", manager.me.ID)
+	Duder.Log(LogGeneral, "> Bot Client ID: ", manager.me.ID)
 
 	// obtain owner account details
 	Duder.Log(LogGeneral, "Obtaining owner account details")
@@ -52,7 +52,7 @@ func (manager *DiscordManager) Connect() error {
 		return fmt.Errorf("Error obtaining owner account details; %s", err)
 	}
 	manager.owner = owner
-	Duder.Log(LogGeneral, "> Owner Client ID:", manager.owner.ID)
+	Duder.Log(LogGeneral, "> Owner Client ID: ", manager.owner.ID)
 
 	// register callbacks
 	manager.session.AddHandler(manager.onMessageCreate)
@@ -240,7 +240,7 @@ func (manager *DiscordManager) SendFileToChannel(channelID string, name string, 
 // SetStatus description
 func (manager *DiscordManager) SetStatus(status string) bool {
 	Duder.Logf(LogVerbose, "[Duder.SetStatus] Setting status to '%s'", status)
-	if err := manager.session.UpdateStatus(0, status); err != nil {
+	if err := manager.session.UpdateWatchStatus(0, status); err != nil {
 		return false
 	}
 	return true
@@ -257,7 +257,7 @@ func (manager *DiscordManager) StartTyping(channelID string) bool {
 
 // SetAvatarByImage description
 func (manager *DiscordManager) SetAvatarByImage(base64 string) bool {
-	if _, err := manager.session.UserUpdate("", "", "", base64, ""); err != nil {
+	if _, err := manager.session.UserUpdate("", base64); err != nil {
 		Duder.Log(LogVerbose, "[Duder.SetAvatarByImage] Unable to set avatar;", err.Error())
 		return false
 	}

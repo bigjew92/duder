@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/foszor/duder/helpers/rugutils"
+	"github.com/bigjew92/duder/helpers/rugutils"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/go-fsnotify/fsnotify"
+	"github.com/fsnotify/fsnotify"
 	"github.com/robertkrimen/otto"
 )
 
