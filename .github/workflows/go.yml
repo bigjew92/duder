@@ -9,6 +9,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  BOT_TOKEN: ${{ secrets.BOTTOKEN }}
+  OWNERID: ${{ secrets.OWNERID }}
 
 jobs:
   build-push:
@@ -43,5 +45,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secrets: |
-            BOT_TOKEN=${{ secrets.BOTTOKEN }}
-            OWNERID=${{ secrets.OWNERID }}
+            BOT_TOKEN=${{ env.BOT_TOKEN }}
+            OWNERID=${{ env.OWNERID }}
