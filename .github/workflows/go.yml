@@ -9,6 +9,8 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  CONFIG: ${{ secrets.CONFIG }}
+  PERMISSIONS: ${{ secrets.PERMISSIONS }}
 
 jobs:
   build-push:
