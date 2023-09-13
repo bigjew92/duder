@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -299,12 +298,12 @@ func (manager *DiscordManager) SaveAvatar(filename string) error {
 		os.Mkdir("avatars", 0777)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		Duder.Log(LogVerbose, "[Duder.SaveAvatar] Unable to read response body;", err.Error())
 		return err
 	}
-	if err = ioutil.WriteFile(fmt.Sprintf("%s/%s", "avatars", filename), data, 0777); err != nil {
+	if err = os.WriteFile(fmt.Sprintf("%s/%s", "avatars", filename), data, 0777); err != nil {
 		Duder.Log(LogVerbose, "[Duder.SaveAvatar] Unable to write file;", err.Error())
 		return err
 	}
@@ -319,7 +318,7 @@ func (manager *DiscordManager) Avatars() []string {
 	}
 
 	avatars := []string{}
-	files, _ := ioutil.ReadDir("avatars")
+	files, _ := os.ReadDir("avatars")
 	for _, f := range files {
 		// ignore directories and non-image files
 		if f.IsDir() || (!strings.HasSuffix(f.Name(), ".png") && !strings.HasSuffix(f.Name(), ".jpg") && !strings.HasSuffix(f.Name(), ".jpeg")) {
@@ -346,7 +345,7 @@ func (manager *DiscordManager) SetAvatarByFile(filename string) error {
 
 	var bytes []byte
 	var err error
-	if bytes, err = ioutil.ReadFile(filePath); err != nil {
+	if bytes, err = os.ReadFile(filePath); err != nil {
 		Duder.Logf(LogVerbose, "[Duder.SetAvatarByFile] Couldn't read avatar file '%s'; %s", filePath, err.Error())
 		return errors.New("couldn't read avatar file")
 	}

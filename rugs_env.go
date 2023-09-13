@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -27,7 +28,7 @@ func bindRugFunction(f func(call otto.FunctionCall) otto.Value) string {
 }
 
 func createRugEnvironment() error {
-	data, err := ioutil.ReadFile("rugs_env.js")
+	data, err := os.ReadFile("rugs_env.js")
 	if err != nil {
 		return errors.New("unable to read rugs_env.js")
 	}
@@ -417,7 +418,7 @@ func rugenvHTTPGet(call otto.FunctionCall) otto.Value {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		Duder.Logf(LogVerbose, "[HTTP.Get] Error reading response body; %s", err.Error())
 		return otto.FalseValue()
@@ -454,7 +455,7 @@ func rugenvHTTPPost(call otto.FunctionCall) otto.Value {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		Duder.Logf(LogVerbose, "[HTTP.Post] Error reading response body; %s", err.Error())
 		return otto.FalseValue()

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -282,7 +281,7 @@ func (rug *Rug) LoadStorage() (string, bool) {
 		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Storage file for rug '%s' not found; creating new one...", rug.Name)
 
 		// create the storage file
-		if e := ioutil.WriteFile(path, []byte("{}"), 0777); e != nil {
+		if e := os.WriteFile(path, []byte("{}"), 0777); e != nil {
 			Duder.Logf(LogVerbose, "[Rug.LoadStorage] Unable to create storage file for rug '%s'", rug.Name)
 			return "{}", false
 		}
@@ -292,7 +291,7 @@ func (rug *Rug) LoadStorage() (string, bool) {
 		return "{}", true
 	}
 
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Unable to read storage file for rug '%s'", rug.Name)
 		return "{}", false
@@ -307,7 +306,7 @@ func (rug *Rug) SaveStorage(data string) bool {
 
 	path := rug.StorageFile()
 
-	if err := ioutil.WriteFile(path, []byte(data), 0777); err != nil {
+	if err := os.WriteFile(path, []byte(data), 0777); err != nil {
 		Duder.Logf(LogVerbose, "[Rug.LoadStorage] Unable to write storage file for rug '%s'; %s", rug.Name, err.Error())
 		return false
 	}
@@ -384,7 +383,7 @@ func (manager *RugManager) Load() error {
 	manager.loadErrors = manager.loadErrors[:0]
 
 	// read the directory to get all the files
-	files, _ := ioutil.ReadDir(path)
+	files, _ := os.ReadDir(path)
 	for _, f := range files {
 		// ignore directories and non-javascript files
 		if f.IsDir() || !strings.HasSuffix(f.Name(), ".js") {
@@ -402,7 +401,7 @@ func (manager *RugManager) LoadRug(file string) {
 	// read the file
 	Duder.Logf(LogVerbose, "[RugManager.LoadRug] Loading rug file '%s'", file)
 	manager.loadFile = file
-	if buf, err := ioutil.ReadFile(file); err != nil {
+	if buf, err := os.ReadFile(file); err != nil {
 		Duder.Logf(LogWarning, "[RugManager.LoadRug] Unable to read rug file '%s': '%s'", file, err.Error())
 	} else {
 		s := string(buf)

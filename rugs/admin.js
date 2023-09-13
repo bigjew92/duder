@@ -54,7 +54,7 @@ admin.addCommand("avatar", function(cmd) {
 			return;
 		}
 
-		var base64 = Base64.encodeToString(bytes);
+		var base64 = base64.encodeToString(bytes);
 		if (base64 === false) {
 			cmd.replyToAuthor("unable to encode image.");
 			return;
