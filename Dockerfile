@@ -11,7 +11,8 @@ RUN go mod download
 # Copy the source code. Note the slash at the end, as explained in
 # https://docs.docker.com/engine/reference/builder/#copy
 COPY . ./
-RUN /bin/bash -c 'export BOT_TOKEN=$BOT_TOKEN && echo OWNERID=$OWNERID'
+ENV BOT_TOKEN ${BOT_TOKEN}
+RUN /bin/bash -c 'export BOT_TOKEN=$BOT_TOKEN'
 
 # Build
 RUN go build -o /duder
