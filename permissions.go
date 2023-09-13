@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -63,14 +62,14 @@ func (manager *PermissionsManager) Load() error {
 		Duder.Log(LogGeneral, "Permissions file not found; creating new one...")
 
 		// create the configuration file
-		if err := ioutil.WriteFile(path, []byte("{}"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("{}"), 0644); err != nil {
 			return fmt.Errorf("unable to create permissions file '%s'; %s", path, err.Error())
 		}
 
 		Duder.Logf(LogGeneral, "Permissions file '%s' created", path)
 	} else {
 		var bytes []byte
-		if bytes, err = ioutil.ReadFile(path); err != nil {
+		if bytes, err = os.ReadFile(path); err != nil {
 			return fmt.Errorf("unable to read permissions file '%s'; %s", path, err.Error())
 		}
 

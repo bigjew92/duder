@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -69,7 +68,7 @@ func (manager *ConfigManager) Load() error {
 			return err
 		}
 	} else {
-		bytes, err := ioutil.ReadFile(manager.path)
+		bytes, err := os.ReadFile(manager.path)
 		if err != nil {
 			return fmt.Errorf("Unable to read configuration file '%s'", manager.path)
 		}
@@ -97,7 +96,7 @@ func (manager *ConfigManager) Save() error {
 	if err != nil {
 		return fmt.Errorf("unable to create configuration data; %s", err.Error())
 	}
-	if err := ioutil.WriteFile(manager.path, bytes, 0777); err != nil {
+	if err := os.WriteFile(manager.path, bytes, 0777); err != nil {
 		return fmt.Errorf("unable to save configuration file '%s'; %s", manager.path, err.Error())
 	}
 
