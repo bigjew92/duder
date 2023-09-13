@@ -56,8 +56,32 @@ func (manager *ConfigManager) Load() error {
 		}
 
 		// required
-		config.BotToken = Duder.GetUserInput("Bot token", true)
-		config.OwnerID = Duder.GetUserInput("Owner ID", true)
+		if os.Getenv("BOT_TOKEN") != "" {
+			value, ok := os.LookupEnv("BOT_TOKEN")
+			if !ok {
+				fmt.Printf("BOT_TOKEN not set\n")
+			} else {
+				fmt.Printf("BOT_TOKEN set")
+				config.BotToken = value
+			}
+		} else {
+			config.BotToken = Duder.GetUserInput("Bot token", true)
+		}
+
+		if os.Getenv("OWNER_ID") != "" {
+			value, ok := os.LookupEnv("OWNER_ID")
+			if !ok {
+				fmt.Printf("OWNER_ID not set\n")
+			} else {
+				fmt.Printf("OWNER_ID set")
+				config.OwnerID = value
+			}
+		} else {
+			config.OwnerID = Duder.GetUserInput("Bot token", true)
+		}
+
+		// config.BotToken = Duder.GetUserInput("Bot token", true)
+		// config.OwnerID = Duder.GetUserInput("Owner ID", true)
 
 		manager.data = config
 
