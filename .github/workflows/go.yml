@@ -9,8 +9,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  CONFIG: ${{ secrets.CONFIG }}
-  PERMISSIONS: ${{ secrets.PERMISSIONS }}
 
 jobs:
   build-push:
@@ -44,3 +42,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          secrets: |
+            CONFIG=${{ secrets.CONFIG }}
+            PERMISSIONS=${{ secrets.PERMISSIONS }}
