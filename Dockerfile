@@ -11,8 +11,11 @@ RUN go mod download
 # Copy the source code. Note the slash at the end, as explained in
 # https://docs.docker.com/engine/reference/builder/#copy
 COPY . ./
-ENV BOT_TOKEN ${BOT_TOKEN}
-RUN /bin/bash -c 'export BOT_TOKEN=$BOT_TOKEN'
+# https://andrei-calazans.com/posts/2021-06-23/passing-secrets-github-actions-docker
+RUN --mount=type=secret,id=BOT_TOKEN \
+    --mount=type=secret,id=OWNERID \
+    export BOT_TOKEN=$(cat /run/secrets/BOT_TOKEN) && \
+    export OWNERID=$(cat /run/secrets/OWNERID)
 
 # Build
 RUN go build -o /duder
