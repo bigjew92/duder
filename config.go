@@ -59,9 +59,9 @@ func (manager *ConfigManager) Load() error {
 		if os.Getenv("BOT_TOKEN") != "" {
 			value, ok := os.LookupEnv("BOT_TOKEN")
 			if !ok {
-				fmt.Printf("BOT_TOKEN not set\n")
+				Duder.Logf(LogVerbose, "BOT_TOKEN not set")
 			} else {
-				fmt.Printf("BOT_TOKEN set")
+				Duder.Logf(LogVerbose, "BOT_TOKEN set: %s", value)
 				config.BotToken = value
 			}
 		} else {
@@ -71,17 +71,14 @@ func (manager *ConfigManager) Load() error {
 		if os.Getenv("OWNER_ID") != "" {
 			value, ok := os.LookupEnv("OWNER_ID")
 			if !ok {
-				fmt.Printf("OWNER_ID not set\n")
+				Duder.Log(LogVerbose, "OWNER_ID not set")
 			} else {
-				fmt.Printf("OWNER_ID set")
+				Duder.Logf(LogVerbose, "OWNER_ID set: %s", value)
 				config.OwnerID = value
 			}
 		} else {
-			config.OwnerID = Duder.GetUserInput("Bot token", true)
+			config.OwnerID = Duder.GetUserInput("Owner ID", true)
 		}
-
-		// config.BotToken = Duder.GetUserInput("Bot token", true)
-		// config.OwnerID = Duder.GetUserInput("Owner ID", true)
 
 		manager.data = config
 
