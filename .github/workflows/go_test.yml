@@ -1,10 +1,8 @@
 name: Duder
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ '!master' ]
 
 env:
   REGISTRY: ghcr.io
