@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/basgys/goxml2json v1.1.0
-	github.com/bwmarrin/discordgo v0.27.1
+	github.com/bwmarrin/discordgo v0.28.1
 	github.com/fatih/color v1.15.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/robertkrimen/otto v0.2.1
