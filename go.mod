@@ -7,7 +7,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/fatih/color v1.15.0
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/robertkrimen/otto v0.2.1
+	github.com/robertkrimen/otto v0.5.1
 )
 
 require (
