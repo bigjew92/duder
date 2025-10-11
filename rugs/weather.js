@@ -1,7 +1,7 @@
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY; // API key must be provided in your environment
-const GEOCODE_URL = "https://api.openweathermap.org/geo/1.0/direct";
-const WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
-const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
+var OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY; // API key must be provided in your environment
+var GEOCODE_URL = "https://api.openweathermap.org/geo/1.0/direct";
+var WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
+var FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 
 var weather = new DuderRug("Weather", "Check the weather.");
 weather.storage = weather.loadStorage();
