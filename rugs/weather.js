@@ -136,4 +136,102 @@ weather.addCommand("weather", function(cmd) {
             citystate = location;
         } else {
             for (var i = 1; i < cmd.args.length; i++) {
-                citystate += cmd.args
+                citystate += cmd.args[i] + " ";
+            }
+            saveLocation = true;
+        }
+
+        citystate = citystate.trim();
+        var coords = this.getCoordinates(citystate, OPENWEATHER_API_KEY);
+        if (!coords) {
+            cmd.replyToAuthor("Could not find coordinates for that location.");
+            return;
+        }
+
+        var lat = coords.lat;
+        var lon = coords.lon;
+        var locationLabel = coords.display_name;
+
+        var urlForecast = FORECAST_URL +
+            "?lat=" + lat +
+            "&lon=" + lon +
+            "&appid=" + OPENWEATHER_API_KEY +
+            "&units=imperial";
+
+        var contentForecast, jsonForecast;
+        try {
+            contentForecast = HTTP.get(4, urlForecast);
+            jsonForecast = JSON.parse(contentForecast);
+        } catch (err) {
+            this.wprint("Error fetching forecast for '" + locationLabel + "': " + err);
+            cmd.replyToAuthor("Failed to retrieve weather forecast for that location.");
+            return;
+        }
+
+        if (jsonForecast.cod != "200" || !jsonForecast.list || jsonForecast.list.length === 0) {
+            this.wprint("Forecast API returned no valid result for '" + locationLabel + "'");
+            cmd.replyToAuthor("No forecast results found for that location.");
+            return;
+        }
+
+        var days = {};
+        for (var i = 0; i < jsonForecast.list.length; i++) {
+            var entry = jsonForecast.list[i];
+            var date = entry.dt_txt.split(" ")[0];
+            var time = entry.dt_txt.split(" ")[1];
+            if (time === "12:00:00" && Object.keys(days).length < 3) {
+                if (!days[date]) {
+                    days[date] = entry;
+                }
+            }
+        }
+
+        var idx = 0;
+        while (Object.keys(days).length < 3 && idx < jsonForecast.list.length) {
+            var entry = jsonForecast.list[idx];
+            var date = entry.dt_txt.split(" ")[0];
+            if (!days[date]) {
+                days[date] = entry;
+            }
+            idx++;
+        }
+
+        var fields = [];
+        for (var day in days) {
+            try {
+                var entry = days[day];
+                var weatherMain = entry.weather[0].main;
+                var weatherDesc = entry.weather[0].description;
+                var icon = this.weatherIcons[weatherMain] || ":question:";
+                var tempMin = Math.round(entry.main.temp_min);
+                var tempMax = Math.round(entry.main.temp_max);
+
+                fields.push({
+                    name: icon + " " + day,
+                    value:
+                        "*" +
+                        weatherDesc.charAt(0).toUpperCase() +
+                        weatherDesc.slice(1) +
+                        "*\nLow: " + tempMin + "°F  High: " + tempMax + "°F"
+                });
+            } catch (err) {
+                this.wprint("Error parsing forecast entry for day: " + day + ", err: " + err);
+            }
+        }
+
+        var embed = {
+            color: 3447003,
+            title: "3 Day Forecast",
+            description: locationLabel,
+            fields: fields
+        };
+
+        if (saveLocation) {
+            this.setUserLocation(cmd.author.id, citystate);
+        }
+        cmd.replyToChannelEmbed(JSON.stringify(embed));
+    } catch (err) {
+        this.wprint("Unexpected error in weather command handler: " + err);
+        cmd.replyToAuthor("Something went wrong while fetching the weather.");
+    }
+});
