@@ -1,5 +1,5 @@
-const GEOCODE_URL = "https://api.openweathermap.org/geo/1.0/direct";
-const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
+var GEOCODE_URL = "https://api.openweathermap.org/geo/1.0/direct";
+var FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 
 var weather = new DuderRug("Weather", "Check the weather.");
 weather.storage = weather.loadStorage();
