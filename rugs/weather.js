@@ -88,7 +88,7 @@ weather.getCoordinates = function(citystate, apiKey) { // Added apiKey parameter
         var url =
             GEOCODE_URL +
             "?q=" +
-            encodeURIComponent(citystate) +
+            citystate +
             "&limit=1&appid=" +
             apiKey; // Use the passed apiKey
         var content = HTTP.get(4, url);
