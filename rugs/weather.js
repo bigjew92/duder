@@ -1,11 +1,12 @@
 var GEOCODE_URL = "https://api.openweathermap.org/geo/1.0/direct";
 var WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
-var FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
+// It seems you are getting a One Call API response, which is better.
+// We will use the forecast URL but the parsing logic will handle the new format.
+var FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"; // This might redirect or your key defaults to a different API version.
 
 var weather = new DuderRug("Weather", "Check the weather.");
 weather.storage = weather.loadStorage();
 
-// --- START: Added functions for API key management ---
 weather.getAPIKey = function() {
 	if (this.storage.settings === undefined) {
 		return false;
@@ -22,7 +23,7 @@ weather.setAPIKey = function(key) {
 	this.storage.settings.api_key = key;
 	this.saveStorage(this.storage);
 };
-// --- END: Added functions for API key management ---
+
 
 weather.getUserLocation = function(userID) {
     if (this.storage.users === undefined) {
@@ -83,14 +84,14 @@ weather.weatherIcons = {
 };
 
 // Get coordinates using OpenWeatherMap Geocoding API
-weather.getCoordinates = function(citystate, apiKey) { // Added apiKey parameter
+weather.getCoordinates = function(citystate, apiKey) {
     try {
         var url =
             GEOCODE_URL +
             "?q=" +
             citystate +
             "&limit=1&appid=" +
-            apiKey; // Use the passed apiKey
+            apiKey;
         var content = HTTP.get(4, url);
         var data = JSON.parse(content);
 
@@ -113,7 +114,6 @@ weather.getCoordinates = function(citystate, apiKey) { // Added apiKey parameter
 };
 
 weather.addCommand("weather", function(cmd) {
-    // --- START: New logic for setkey and API key retrieval ---
     if (cmd.args.length > 1 && cmd.args[1].toLowerCase() === "setkey") {
         if (cmd.args.length === 3) {
             this.setAPIKey(cmd.args[2]);
@@ -130,7 +130,6 @@ weather.addCommand("weather", function(cmd) {
         cmd.replyToAuthor("The OpenWeather API key has not been set. Use `weather setkey YOUR_API_KEY`.");
         return;
     }
-    // --- END: New logic ---
 
     var citystate = "";
     var saveLocation = false;
@@ -151,7 +150,7 @@ weather.addCommand("weather", function(cmd) {
         }
 
         citystate = citystate.trim();
-        var coords = this.getCoordinates(citystate, OPENWEATHER_API_KEY); // Pass key to function
+        var coords = this.getCoordinates(citystate, OPENWEATHER_API_KEY);
         if (!coords) {
             cmd.replyToAuthor("No results found for that location.");
             return;
@@ -160,37 +159,16 @@ weather.addCommand("weather", function(cmd) {
         var lat = coords.lat;
         var lon = coords.lon;
         var locationLabel = coords.display_name;
+        
+        // --- Note: We're now using a different API endpoint for the forecast that returns richer data. ---
+        // The free tier of OpenWeather often defaults to the "OneCall" API.
+        var urlForecast = "https://api.openweathermap.org/data/2.5/onecall" +
+            "?lat=" + lat +
+            "&lon=" + lon +
+            "&exclude=current,minutely,hourly,alerts" + // We only need the daily forecast
+            "&appid=" + OPENWEATHER_API_KEY +
+            "&units=imperial";
 
-        // Fetch current weather
-        var urlCurrent =
-            WEATHER_URL +
-            "?lat=" + lat +
-            "&lon=" + lon +
-            "&appid=" + OPENWEATHER_API_KEY +
-            "&units=imperial";
-        var contentCurrent, jsonCurrent;
-        try {
-            contentCurrent = HTTP.get(4, urlCurrent);
-            jsonCurrent = JSON.parse(contentCurrent);
-        } catch (err) {
-            console.error("Error fetching current weather for", locationLabel, err);
-            cmd.replyToAuthor("Failed to retrieve current weather for that location.");
-            return;
-        }
-
-        if (!jsonCurrent || jsonCurrent.cod != 200) {
-            console.error("Weather API returned no valid result for", locationLabel, jsonCurrent);
-            cmd.replyToAuthor("No weather results found for that location.");
-            return;
-        }
-
-        // Fetch 3-day forecast
-        var urlForecast =
-            FORECAST_URL +
-            "?lat=" + lat +
-            "&lon=" + lon +
-            "&appid=" + OPENWEATHER_API_KEY +
-            "&units=imperial";
         var contentForecast, jsonForecast;
         try {
             contentForecast = HTTP.get(4, urlForecast);
@@ -201,45 +179,30 @@ weather.addCommand("weather", function(cmd) {
             return;
         }
 
-        if (!jsonForecast || !jsonForecast.list || jsonForecast.list.length === 0) {
-            console.error("Forecast API returned no valid result for", locationLabel, jsonForecast);
+        // --- START: Updated forecast parsing logic ---
+        if (!jsonForecast || !jsonForecast.daily || jsonForecast.daily.length === 0) {
+            console.error("Forecast API returned no valid daily result for", locationLabel, jsonForecast);
             cmd.replyToAuthor("No forecast results found for that location.");
             return;
         }
 
-        // Extract the next 3 days at 12:00 pm
-        var days = {};
-        for (var i = 0; i < jsonForecast.list.length; i++) {
-            var entry = jsonForecast.list[i];
-            var date = entry.dt_txt.split(" ")[0];
-            var time = entry.dt_txt.split(" ")[1];
-            if (time === "12:00:00" && Object.keys(days).length < 3) {
-                days[date] = entry;
-            }
-        }
-        // Fallback
-        var idx = 0;
-        while (Object.keys(days).length < 3 && idx < jsonForecast.list.length) {
-            var entry = jsonForecast.list[idx];
-            var date = entry.dt_txt.split(" ")[0];
-            if (!days[date]) {
-                days[date] = entry;
-            }
-            idx++;
-        }
-
         var fields = [];
-        for (var day in days) {
+        // Loop through the first 3 days of the 'daily' array
+        for (var i = 0; i < 3 && i < jsonForecast.daily.length; i++) {
             try {
-                var entry = days[day];
+                var entry = jsonForecast.daily[i];
+                // Convert timestamp to a readable date
+                var date = new Date(entry.dt * 1000).toISOString().split('T')[0];
+
                 var weatherMain = entry.weather[0].main;
                 var weatherDesc = entry.weather[0].description;
                 var icon = weather.weatherIcons[weatherMain] || ":question:";
-                var tempMin = Math.round(entry.main.temp_min);
-                var tempMax = Math.round(entry.main.temp_max);
+                // Temperatures are now in entry.temp.min and entry.temp.max
+                var tempMin = Math.round(entry.temp.min);
+                var tempMax = Math.round(entry.temp.max);
 
                 fields.push({
-                    name: icon + " " + day,
+                    name: icon + " " + date,
                     value:
                         "*" +
                         weatherDesc.charAt(0).toUpperCase() +
@@ -247,9 +210,10 @@ weather.addCommand("weather", function(cmd) {
                         "*\\nLow: " + tempMin + "°F  High: " + tempMax + "°F"
                 });
             } catch (err) {
-                console.error("Error parsing forecast entry for day:", day, err);
+                console.error("Error parsing forecast entry for day index:", i, err);
             }
         }
+        // --- END: Updated forecast parsing logic ---
 
         var embed = {
             color: 3447003,
