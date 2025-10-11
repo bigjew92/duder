@@ -1,4 +1,7 @@
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY; // <-- Uses the API key from environment variable
+const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY; // API key must be provided in your environment
+const GEOCODE_URL = "https://api.openweathermap.org/geo/1.0/direct";
+const WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
+const FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast";
 
 var weather = new DuderRug("Weather", "Check the weather.");
 weather.storage = weather.loadStorage();
@@ -61,110 +64,179 @@ weather.weatherIcons = {
 	Tornado: ":tornado:"
 };
 
-// Helper to get city and state from input
-function parseCityState(citystate) {
-	return encodeURIComponent(citystate.trim());
-}
+// Get coordinates using OpenWeatherMap Geocoding API
+weather.getCoordinates = function(citystate) {
+	try {
+		var url =
+			GEOCODE_URL +
+			"?q=" +
+			encodeURIComponent(citystate) +
+			"&limit=1&appid=" +
+			OPENWEATHER_API_KEY;
+		var content = HTTP.get(4, url);
+		var data = JSON.parse(content);
+
+		if (!Array.isArray(data) || data.length === 0) {
+			console.error("Geocoding API returned no results for location:", citystate);
+			return null;
+		}
+		return {
+			lat: data[0].lat,
+			lon: data[0].lon,
+			display_name:
+				(data[0].name || "") +
+				(data[0].state ? ", " + data[0].state : "") +
+				(data[0].country ? ", " + data[0].country : "")
+		};
+	} catch (err) {
+		console.error("Error during geocoding request for location:", citystate, err);
+		return null;
+	}
+};
 
 weather.addCommand("weather", function(cmd) {
 	var citystate = "";
 	var saveLocation = false;
 
-	if (cmd.args.length < 2) {
-		var location = this.getUserLocation(cmd.author.id);
-		if (location === false) {
-			cmd.replyToAuthor("usage: `weather city, ST`");
+	try {
+		if (cmd.args.length < 2) {
+			var location = this.getUserLocation(cmd.author.id);
+			if (location === false) {
+				cmd.replyToAuthor("usage: `weather city, ST`");
+				return;
+			}
+			citystate = location;
+		} else {
+			for (var i = 1; i < cmd.args.length; i++) {
+				citystate += cmd.args[i] + " ";
+			}
+			saveLocation = true;
+		}
+
+		citystate = citystate.trim();
+		var coords = this.getCoordinates(citystate);
+		if (!coords) {
+			cmd.replyToAuthor("No results found for that location.");
 			return;
 		}
-		citystate = location;
-	} else {
-		for (var i = 1; i < cmd.args.length; i++) {
-			citystate += cmd.args[i] + " ";
+
+		var lat = coords.lat;
+		var lon = coords.lon;
+		var locationLabel = coords.display_name;
+
+		// Fetch current weather for validation
+		var urlCurrent =
+			WEATHER_URL +
+			"?lat=" +
+			lat +
+			"&lon=" +
+			lon +
+			"&appid=" +
+			OPENWEATHER_API_KEY +
+			"&units=imperial";
+		var contentCurrent, jsonCurrent;
+		try {
+			contentCurrent = HTTP.get(4, urlCurrent);
+			jsonCurrent = JSON.parse(contentCurrent);
+		} catch (err) {
+			console.error("Error fetching current weather for", locationLabel, err);
+			cmd.replyToAuthor("Failed to retrieve current weather for that location.");
+			return;
 		}
-		saveLocation = true;
-	}
 
-	citystate = citystate.trim();
-	var locationParam = parseCityState(citystate);
-
-	// Fetch current weather for the location (for city name validation)
-	var urlCurrent =
-		"https://api.openweathermap.org/data/2.5/weather?q=" +
-		locationParam +
-		"&appid=" + OPENWEATHER_API_KEY + "&units=imperial";
-
-	var contentCurrent = HTTP.get(4, urlCurrent);
-	var jsonCurrent = JSON.parse(contentCurrent);
-
-	if (!jsonCurrent || jsonCurrent.cod != 200) {
-		cmd.replyToAuthor("no weather results found for that location.");
-		return;
-	}
-
-	var cityName = jsonCurrent.name;
-	var country = jsonCurrent.sys && jsonCurrent.sys.country ? jsonCurrent.sys.country : "";
-
-	// Fetch 3-day forecast for the location
-	var urlForecast =
-		"https://api.openweathermap.org/data/2.5/forecast?q=" +
-		locationParam +
-		"&appid=" + OPENWEATHER_API_KEY + "&units=imperial";
-
-	var contentForecast = HTTP.get(4, urlForecast);
-	var jsonForecast = JSON.parse(contentForecast);
-
-	if (!jsonForecast || !jsonForecast.list || jsonForecast.list.length === 0) {
-		cmd.replyToAuthor("no forecast results found for that location.");
-		return;
-	}
-
-	// OpenWeatherMap gives 3-hourly forecasts; we'll extract the next 3 days at 12:00 pm
-	var days = {};
-	for (var i = 0; i < jsonForecast.list.length; i++) {
-		var entry = jsonForecast.list[i];
-		var date = entry.dt_txt.split(" ")[0];
-		var time = entry.dt_txt.split(" ")[1];
-		if (time === "12:00:00" && Object.keys(days).length < 3) {
-			days[date] = entry;
+		if (!jsonCurrent || jsonCurrent.cod != 200) {
+			console.error("Weather API returned no valid result for", locationLabel, jsonCurrent);
+			cmd.replyToAuthor("No weather results found for that location.");
+			return;
 		}
-	}
-	// Fallback: if not enough at 12:00, fill with next available
-	var idx = 0;
-	while (Object.keys(days).length < 3 && idx < jsonForecast.list.length) {
-		var entry = jsonForecast.list[idx];
-		var date = entry.dt_txt.split(" ")[0];
-		if (!days[date]) {
-			days[date] = entry;
+
+		// Fetch 3-day forecast for the location
+		var urlForecast =
+			FORECAST_URL +
+			"?lat=" +
+			lat +
+			"&lon=" +
+			lon +
+			"&appid=" +
+			OPENWEATHER_API_KEY +
+			"&units=imperial";
+		var contentForecast, jsonForecast;
+		try {
+			contentForecast = HTTP.get(4, urlForecast);
+			jsonForecast = JSON.parse(contentForecast);
+		} catch (err) {
+			console.error("Error fetching forecast for", locationLabel, err);
+			cmd.replyToAuthor("Failed to retrieve weather forecast for that location.");
+			return;
 		}
-		idx++;
+
+		if (!jsonForecast || !jsonForecast.list || jsonForecast.list.length === 0) {
+			console.error("Forecast API returned no valid result for", locationLabel, jsonForecast);
+			cmd.replyToAuthor("No forecast results found for that location.");
+			return;
+		}
+
+		// Extract the next 3 days at 12:00 pm
+		var days = {};
+		for (var i = 0; i < jsonForecast.list.length; i++) {
+			var entry = jsonForecast.list[i];
+			var date = entry.dt_txt.split(" ")[0];
+			var time = entry.dt_txt.split(" ")[1];
+			if (time === "12:00:00" && Object.keys(days).length < 3) {
+				days[date] = entry;
+			}
+		}
+		// Fallback: fill with next available
+		var idx = 0;
+		while (Object.keys(days).length < 3 && idx < jsonForecast.list.length) {
+			var entry = jsonForecast.list[idx];
+			var date = entry.dt_txt.split(" ")[0];
+			if (!days[date]) {
+				days[date] = entry;
+			}
+			idx++;
+		}
+
+		var fields = [];
+		for (var day in days) {
+			try {
+				var entry = days[day];
+				var weatherMain = entry.weather[0].main;
+				var weatherDesc = entry.weather[0].description;
+				var icon = weather.weatherIcons[weatherMain] || ":question:";
+				var tempMin = Math.round(entry.main.temp_min);
+				var tempMax = Math.round(entry.main.temp_max);
+
+				fields.push({
+					name: icon + " " + day,
+					value:
+						"*" +
+						weatherDesc.charAt(0).toUpperCase() +
+						weatherDesc.slice(1) +
+						"*\\nLow: " +
+						tempMin +
+						"°F  High: " +
+						tempMax +
+						"°F"
+				});
+			} catch (err) {
+				console.error("Error parsing forecast entry for day:", day, err);
+			}
+		}
+
+		var embed = {
+			color: 3447003,
+			title: "3 Day Forecast",
+			description: locationLabel,
+			fields: fields
+		};
+
+		if (saveLocation) {
+			this.setUserLocation(cmd.author.id, citystate);
+		}
+		cmd.replyToChannelEmbed(JSON.stringify(embed));
+	} catch (err) {
+		console.error("Unexpected error in weather command handler:", err);
+		cmd.replyToAuthor("Something went wrong while fetching the weather.");
 	}
-
-	var fields = [];
-	for (var day in days) {
-		var entry = days[day];
-		var weatherMain = entry.weather[0].main;
-		var weatherDesc = entry.weather[0].description;
-		var icon = weather.weatherIcons[weatherMain] || ":question:";
-		var tempMin = Math.round(entry.main.temp_min);
-		var tempMax = Math.round(entry.main.temp_max);
-
-		fields.push({
-			name: icon + " " + day,
-			value: "*" + weatherDesc.charAt(0).toUpperCase() + weatherDesc.slice(1) + "*\nLow: " + tempMin + "°F  High: " + tempMax + "°F"
-		});
-	}
-
-	var title = cityName + (country ? ", " + country : "");
-
-	var embed = {
-		color: 3447003,
-		title: "3 Day Forecast",
-		description: title,
-		fields: fields
-	};
-
-	if (saveLocation) {
-		this.setUserLocation(cmd.author.id, citystate);
-	}
-	cmd.replyToChannelEmbed(JSON.stringify(embed));
 });
