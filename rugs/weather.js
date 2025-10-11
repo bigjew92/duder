@@ -73,7 +73,8 @@ weather.weatherIcons = {
 // Get coordinates using OpenWeatherMap Geocoding API
 weather.getCoordinates = function(citystate, apiKey) {
     try {
-        var query = citystate;
+		// Remove all spaces from the input to handle "city, state" and "city,state" formats
+        var query = citystate.replace(/\s/g, '');
         // Append ",us" to be more specific for US locations as per the working example
         if (query.split(',').length === 2) {
             query += ',us';
