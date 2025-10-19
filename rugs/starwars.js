@@ -8,7 +8,6 @@ starwars.addCommand("starwars", function(cmd) {
 
     var type = cmd.args[1].toLowerCase();
     var query = cmd.args.slice(2).join(" ");
-    // Corrected the base URL to point to the API server
     var url = "https://starwars-databank-server.vercel.app/api/v1/";
 
     Duder.startTyping(cmd.channelID);
@@ -28,8 +27,8 @@ starwars.addCommand("starwars", function(cmd) {
         return;
     }
 
-    // Check if the response is HTML (which would indicate an error from the API)
-    if (content.trim().startsWith("<")) {
+    // Check if the response is HTML by looking at the first character
+    if (content.trim().substring(0, 1) === "<") {
         cmd.replyToAuthor("The Star Wars API returned an unexpected error. Please try again later.");
         this.wprint("API returned HTML instead of JSON from URL: " + url);
         return;
