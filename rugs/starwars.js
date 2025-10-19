@@ -13,9 +13,10 @@ starwars.addCommand("starwars", function(cmd) {
     Duder.startTyping(cmd.channelID);
 
     if (type === "character") {
-        url += "characters/search/" + encodeURIComponent(query);
+        url += "characters/name/" + encodeURIComponent(query);
     } else if (type === "location") {
-        url += "locations/search/" + encodeURIComponent(query);
+        // Updated to use the more direct /name/ endpoint for locations
+        url += "locations/name/" + encodeURIComponent(query);
     } else {
         cmd.replyToAuthor("Invalid search type. Use `character` or `location`.");
         return;
@@ -27,9 +28,8 @@ starwars.addCommand("starwars", function(cmd) {
         return;
     }
 
-    // Check if the response is HTML by looking at the first character
     if (content.trim().substring(0, 1) === "<") {
-        cmd.replyToAuthor("The Star Wars API returned an unexpected error. Please try again later.");
+        cmd.replyToAuthor("Could not find a " + type + " with that name.");
         this.wprint("API returned HTML instead of JSON from URL: " + url);
         return;
     }
@@ -44,12 +44,12 @@ starwars.addCommand("starwars", function(cmd) {
     }
 
     if (type === "character") {
-        if (json === undefined || !json.characters || json.characters.length === 0) {
+        if (json === undefined || json.name === undefined) {
             cmd.replyToAuthor("Could not find a character with that name.");
             return;
         }
 
-        var character = json.characters[0];
+        var character = json;
 
         var embed = new EmbedMessage();
         embed.setTitle(character.name);
@@ -64,12 +64,13 @@ starwars.addCommand("starwars", function(cmd) {
         cmd.replyToChannelEmbed(embed.compile());
 
     } else if (type === "location") {
-        if (json === undefined || !json.locations || json.locations.length === 0) {
+        // Adjusted to handle the single location object
+        if (json === undefined || json.name === undefined) {
             cmd.replyToAuthor("Could not find a location with that name.");
             return;
         }
 
-        var location = json.locations[0];
+        var location = json;
 
         var embed = new EmbedMessage();
         embed.setTitle(location.name);
