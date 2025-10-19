@@ -8,21 +8,44 @@ starwars.addCommand("starwars", function(cmd) {
 
     var type = cmd.args[1].toLowerCase();
     var query = cmd.args.slice(2).join(" ");
-    var url = "https://starwars-databank.vercel.app/api/v1/";
+    // Corrected the base URL to point to the API server
+    var url = "https://starwars-databank-server.vercel.app/api/v1/";
 
     Duder.startTyping(cmd.channelID);
 
     if (type === "character") {
         url += "characters/search/" + encodeURIComponent(query);
+    } else if (type === "location") {
+        url += "locations/search/" + encodeURIComponent(query);
+    } else {
+        cmd.replyToAuthor("Invalid search type. Use `character` or `location`.");
+        return;
+    }
 
-        var content = HTTP.get(10, url, {});
-        if (content === false) {
-            cmd.replyToAuthor("Something went wrong while searching for that character.");
-            return;
-        }
+    var content = HTTP.get(10, url, {});
+    if (content === false) {
+        cmd.replyToAuthor("Something went wrong while searching.");
+        return;
+    }
 
-        var json = JSON.parse(content);
-        if (json === undefined || json.characters.length === 0) {
+    // Check if the response is HTML (which would indicate an error from the API)
+    if (content.trim().startsWith("<")) {
+        cmd.replyToAuthor("The Star Wars API returned an unexpected error. Please try again later.");
+        this.wprint("API returned HTML instead of JSON from URL: " + url);
+        return;
+    }
+
+    var json;
+    try {
+        json = JSON.parse(content);
+    } catch (e) {
+        cmd.replyToAuthor("There was an error parsing the data from the Star Wars API.");
+        this.wprint("Failed to parse JSON: " + e.message);
+        return;
+    }
+
+    if (type === "character") {
+        if (json === undefined || !json.characters || json.characters.length === 0) {
             cmd.replyToAuthor("Could not find a character with that name.");
             return;
         }
@@ -33,25 +56,16 @@ starwars.addCommand("starwars", function(cmd) {
         embed.setTitle(character.name);
         embed.setDescription(character.description);
         embed.setThumbnail(character.image);
-        embed.addField("Homeworld", character.homeworld);
-        embed.addField("Species", character.species);
-        embed.addField("Affiliations", character.affiliations.join(", "));
-        embed.addField("Masters", character.masters.join(", "));
-        embed.addField("Apprentices", character.apprentices.join(", "));
+        embed.addField("Homeworld", character.homeworld || "Unknown");
+        embed.addField("Species", character.species || "Unknown");
+        embed.addField("Affiliations", character.affiliations ? character.affiliations.join(", ") : "None");
+        embed.addField("Masters", character.masters ? character.masters.join(", ") : "None");
+        embed.addField("Apprentices", character.apprentices ? character.apprentices.join(", ") : "None");
 
         cmd.replyToChannelEmbed(embed.compile());
 
     } else if (type === "location") {
-        url += "locations/search/" + encodeURIComponent(query);
-
-        var content = HTTP.get(10, url, {});
-        if (content === false) {
-            cmd.replyToAuthor("Something went wrong while searching for that location.");
-            return;
-        }
-
-        var json = JSON.parse(content);
-        if (json === undefined || json.locations.length === 0) {
+        if (json === undefined || !json.locations || json.locations.length === 0) {
             cmd.replyToAuthor("Could not find a location with that name.");
             return;
         }
@@ -62,12 +76,10 @@ starwars.addCommand("starwars", function(cmd) {
         embed.setTitle(location.name);
         embed.setDescription(location.description);
         embed.setThumbnail(location.image);
-        embed.addField("Climate", location.climate);
-        embed.addField("Terrain", location.terrain);
-        embed.addField("Notable Inhabitants", location.notable_inhabitants.join(", "));
+        embed.addField("Climate", location.climate || "Unknown");
+        embed.addField("Terrain", location.terrain || "Unknown");
+        embed.addField("Notable Inhabitants", location.notable_inhabitants ? location.notable_inhabitants.join(", ") : "None");
 
         cmd.replyToChannelEmbed(embed.compile());
-    } else {
-        cmd.replyToAuthor("Invalid search type. Use `character` or `location`.");
     }
 });
