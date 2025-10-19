@@ -62,12 +62,7 @@ starwars.addCommand("starwars", function(cmd) {
         var embed = new EmbedMessage();
         embed.setTitle(character.name);
         embed.setDescription(character.description);
-        embed.setThumbnail(character.image);
-        embed.addField("Homeworld", character.homeworld || "Unknown");
-        embed.addField("Species", character.species || "Unknown");
-        embed.addField("Affiliations", character.affiliations ? character.affiliations.join(", ") : "None");
-        embed.addField("Masters", character.masters ? character.masters.join(", ") : "None");
-        embed.addField("Apprentices", character.apprentices ? character.apprentices.join(", ") : "None");
+        embed.setImage(character.image);
 
         cmd.replyToChannelEmbed(embed.compile());
 
@@ -83,10 +78,7 @@ starwars.addCommand("starwars", function(cmd) {
         var embed = new EmbedMessage();
         embed.setTitle(location.name);
         embed.setDescription(location.description);
-        embed.setThumbnail(location.image);
-        embed.addField("Climate", location.climate || "Unknown");
-        embed.addField("Terrain", location.terrain || "Unknown");
-        embed.addField("Notable Inhabitants", location.notable_inhabitants ? location.notable_inhabitants.join(", ") : "None");
+        embed.setImage(location.image);
 
         cmd.replyToChannelEmbed(embed.compile());
     }
