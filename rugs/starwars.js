@@ -1,25 +1,27 @@
-var starwars = new DuderRug("Star Wars", "Get information about Star Wars characters and locations.");
+var starwars = new DuderRug("Star Wars", "Get information about the Star Wars universe.");
 
 starwars.addCommand("starwars", function(cmd) {
+    var validTypes = ["character", "location", "creature", "droid", "organization", "specie", "vehicle"];
+
     if (cmd.args.length < 3) {
-        cmd.replyToAuthor("Usage: `starwars <character|location> <name>`");
+        cmd.replyToAuthor("Usage: `starwars <type> <name>`\nValid types are: `" + validTypes.join(", ") + "`");
         return;
     }
 
     var type = cmd.args[1].toLowerCase();
     var query = cmd.args.slice(2).join(" ");
-    var url = "https://starwars-databank-server.vercel.app/api/v1/";
-
-    Duder.startTyping(cmd.channelID);
-
-    if (type === "character") {
-        url += "characters/name/" + encodeURIComponent(query);
-    } else if (type === "location") {
-        url += "locations/name/" + encodeURIComponent(query);
-    } else {
-        cmd.replyToAuthor("Invalid search type. Use `character` or `location`.");
+    
+    // Check if the provided type is valid
+    if (!validTypes.contains(type)) {
+        cmd.replyToAuthor("Invalid search type. Use one of the following: `" + validTypes.join(", ") + "`");
         return;
     }
+
+    // The API uses plural forms for its endpoints (e.g., "characters", "droids")
+    var endpoint = type + "s";
+    var url = "https://starwars-databank-server.vercel.app/api/v1/" + endpoint + "/name/" + encodeURIComponent(query);
+
+    Duder.startTyping(cmd.channelID);
 
     var headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -46,38 +48,21 @@ starwars.addCommand("starwars", function(cmd) {
         this.wprint("Failed to parse JSON: " + e.message);
         return;
     }
-
-    if (type === "character") {
-        // Check if the response is a non-empty array
-        if (json === undefined || !Array.isArray(json) || json.length === 0) {
-            cmd.replyToAuthor("Could not find a character with that name.");
-            return;
-        }
-
-        // Get the first character from the returned array
-        var character = json[0];
-
-        var embed = new EmbedMessage();
-        embed.setTitle(character.name);
-        embed.setDescription(character.description);
-        embed.setImage(character.image);
-
-        cmd.replyToChannelEmbed(embed.compile());
-
-    } else if (type === "location") {
-        // Also handle the location data as an array
-        if (json === undefined || !Array.isArray(json) || json.length === 0) {
-            cmd.replyToAuthor("Could not find a location with that name.");
-            return;
-        }
-
-        var location = json[0];
-
-        var embed = new EmbedMessage();
-        embed.setTitle(location.name);
-        embed.setDescription(location.description);
-        embed.setImage(location.image);
-
-        cmd.replyToChannelEmbed(embed.compile());
+    
+    // Check if the response is a non-empty array
+    if (json === undefined || !Array.isArray(json) || json.length === 0) {
+        cmd.replyToAuthor("Could not find a " + type + " with that name.");
+        return;
     }
+
+    // Get the first item from the returned array
+    var item = json[0];
+
+    // Build and send the embed
+    var embed = new EmbedMessage();
+    embed.setTitle(item.name);
+    embed.setDescription(item.description);
+    embed.setImage(item.image);
+
+    cmd.replyToChannelEmbed(embed.compile());
 });
