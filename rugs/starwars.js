@@ -26,8 +26,6 @@ starwars.addCommand("starwars", function(cmd) {
     };
     
     var content = HTTP.get(10, url, headers);
-    
-    this.dprint("API Response for " + url + ":\n" + content);
 
     if (content === false) {
         cmd.replyToAuthor("Something went wrong while searching.");
