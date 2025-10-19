@@ -1,7 +1,7 @@
 var starwars = new DuderRug("Star Wars", "Get information about the Star Wars universe.");
 
 starwars.addCommand("starwars", function(cmd) {
-    var validTypes = ["character", "location", "creature", "droid", "organization", "specie", "vehicle"];
+    var validTypes = ["character", "location", "creature", "droid", "organization", "species", "vehicle"];
 
     if (cmd.args.length < 3) {
         cmd.replyToAuthor("Usage: `starwars <type> <name>`\nValid types are: `" + validTypes.join(", ") + "`");
@@ -11,14 +11,18 @@ starwars.addCommand("starwars", function(cmd) {
     var type = cmd.args[1].toLowerCase();
     var query = cmd.args.slice(2).join(" ");
     
-    // Check if the provided type is valid
     if (!validTypes.contains(type)) {
         cmd.replyToAuthor("Invalid search type. Use one of the following: `" + validTypes.join(", ") + "`");
         return;
     }
 
-    // The API uses plural forms for its endpoints (e.g., "characters", "droids")
-    var endpoint = type + "s";
+    var endpoint;
+    if (type === "species") {
+        endpoint = "species";
+    } else {
+        endpoint = type + "s";
+    }
+    
     var url = "https://starwars-databank-server.vercel.app/api/v1/" + endpoint + "/name/" + encodeURIComponent(query);
 
     Duder.startTyping(cmd.channelID);
@@ -28,6 +32,9 @@ starwars.addCommand("starwars", function(cmd) {
     };
     
     var content = HTTP.get(10, url, headers);
+
+    // --- DEBUGGING LINE ---
+    this.dprint("API Response for " + url + ":\n" + content);
 
     if (content === false) {
         cmd.replyToAuthor("Something went wrong while searching.");
@@ -49,16 +56,13 @@ starwars.addCommand("starwars", function(cmd) {
         return;
     }
     
-    // Check if the response is a non-empty array
     if (json === undefined || !Array.isArray(json) || json.length === 0) {
         cmd.replyToAuthor("Could not find a " + type + " with that name.");
         return;
     }
 
-    // Get the first item from the returned array
     var item = json[0];
 
-    // Build and send the embed
     var embed = new EmbedMessage();
     embed.setTitle(item.name);
     embed.setDescription(item.description);
