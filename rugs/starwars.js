@@ -21,12 +21,16 @@ starwars.addCommand("starwars", function(cmd) {
         return;
     }
 
-    // Add a standard User-Agent header to mimic a browser request
     var headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     };
     
     var content = HTTP.get(10, url, headers);
+    
+    // --- DEBUGGING LINE ---
+    // This will print the raw API response to your bot's console/log.
+    this.dprint("API Response for " + url + ":\n" + content);
+
     if (content === false) {
         cmd.replyToAuthor("Something went wrong while searching.");
         return;
