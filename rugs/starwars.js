@@ -27,8 +27,6 @@ starwars.addCommand("starwars", function(cmd) {
     
     var content = HTTP.get(10, url, headers);
     
-    // --- DEBUGGING LINE ---
-    // This will print the raw API response to your bot's console/log.
     this.dprint("API Response for " + url + ":\n" + content);
 
     if (content === false) {
@@ -52,12 +50,14 @@ starwars.addCommand("starwars", function(cmd) {
     }
 
     if (type === "character") {
-        if (json === undefined || json.name === undefined) {
+        // Check if the response is a non-empty array
+        if (json === undefined || !Array.isArray(json) || json.length === 0) {
             cmd.replyToAuthor("Could not find a character with that name.");
             return;
         }
 
-        var character = json;
+        // Get the first character from the returned array
+        var character = json[0];
 
         var embed = new EmbedMessage();
         embed.setTitle(character.name);
@@ -72,12 +72,13 @@ starwars.addCommand("starwars", function(cmd) {
         cmd.replyToChannelEmbed(embed.compile());
 
     } else if (type === "location") {
-        if (json === undefined || json.name === undefined) {
+        // Also handle the location data as an array
+        if (json === undefined || !Array.isArray(json) || json.length === 0) {
             cmd.replyToAuthor("Could not find a location with that name.");
             return;
         }
 
-        var location = json;
+        var location = json[0];
 
         var embed = new EmbedMessage();
         embed.setTitle(location.name);
