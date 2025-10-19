@@ -15,14 +15,18 @@ starwars.addCommand("starwars", function(cmd) {
     if (type === "character") {
         url += "characters/name/" + encodeURIComponent(query);
     } else if (type === "location") {
-        // Updated to use the more direct /name/ endpoint for locations
         url += "locations/name/" + encodeURIComponent(query);
     } else {
         cmd.replyToAuthor("Invalid search type. Use `character` or `location`.");
         return;
     }
 
-    var content = HTTP.get(10, url, {});
+    // Add a standard User-Agent header to mimic a browser request
+    var headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    };
+    
+    var content = HTTP.get(10, url, headers);
     if (content === false) {
         cmd.replyToAuthor("Something went wrong while searching.");
         return;
@@ -64,7 +68,6 @@ starwars.addCommand("starwars", function(cmd) {
         cmd.replyToChannelEmbed(embed.compile());
 
     } else if (type === "location") {
-        // Adjusted to handle the single location object
         if (json === undefined || json.name === undefined) {
             cmd.replyToAuthor("Could not find a location with that name.");
             return;
