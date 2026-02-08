@@ -185,15 +185,15 @@ For full functionality, you can also select:
 | `/8ball` | Ask the magic 8-ball |
 | `/lebowski` | Random Big Lebowski quote |
 | `/dadjoke` | Random dad joke |
+| `/fact` | Get a useless fact (random or today) |
 | `/big` | Convert text to big emoji letters |
 | `/smol` | Convert text to tiny letters |
-| `/aura` | Check your aura level |
+| `/aura` | Random Aura Copypasta |
 | `/lastseen` | Check when a user was last active |
 | `/weather` | Get weather forecast (use `location:` option) |
 | `/meme` | Create a meme |
-| `/raffle` | Run a raffle |
-| `/rank` | Check your reaction XP rank |
-| `/leaderboard` | Server XP leaderboard |
+| `/mlb` | MLB player/team stats lookup |
+| `/nhl` | NHL player/team stats lookup |
 | `/starwars` | Star Wars databank lookup |
 | `/xbl` | Xbox Live profile lookup |
 | `/youtube` | Random video from playlist |

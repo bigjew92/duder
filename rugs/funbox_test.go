@@ -106,7 +106,7 @@ func TestAuraCommand(t *testing.T) {
 	cmd := &AuraCommand{}
 	ctx := NewTestContext()
 
-	// Aura replies with a random string. We match any string.
+	// Aura replies with a block quote string
 	ctx.On("Reply", mock.AnythingOfType("string")).Return(nil)
 
 	err := cmd.Execute(ctx)

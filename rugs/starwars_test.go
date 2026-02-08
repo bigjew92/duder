@@ -2,7 +2,6 @@ package rugs
 
 import (
 	"fmt"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,22 +13,22 @@ func TestStarWarsCommand(t *testing.T) {
 	cmd := &StarWarsCommand{}
 	ctx := NewTestContext()
 
-	// Mock data
+	// Mock data - new API fetches all, then searches locally
 	searchTerm := "Luke"
-	searchType := "people"
-	expectedURL := fmt.Sprintf("%s/%s/?search=%s", starWarsAPIBase, searchType, url.QueryEscape(searchTerm))
+	searchType := "characters"
+	expectedURL := fmt.Sprintf("%s/%s?page=1&limit=1000", starWarsAPIBase, searchType)
 
 	mockResponse := `{
-		"results": [
+		"data": [
 			{
 				"name": "Luke Skywalker",
-				"height": "172",
-				"mass": "77",
-				"hair_color": "blond",
-				"skin_color": "fair",
-				"eye_color": "blue",
-				"birth_year": "19BBY",
-				"gender": "male"
+				"description": "A young farm boy from Tatooine who becomes a Jedi.",
+				"image": "https://example.com/luke.jpg"
+			},
+			{
+				"name": "Darth Vader",
+				"description": "A Sith Lord.",
+				"image": "https://example.com/vader.jpg"
 			}
 		]
 	}`
@@ -42,8 +41,6 @@ func TestStarWarsCommand(t *testing.T) {
 
 	// We expect FollowUpEmbed to be called with an embed containing "Luke Skywalker"
 	ctx.On("FollowUpEmbed", mock.MatchedBy(func(embed interface{}) bool {
-		// Verify basic properties of the embed
-		// Note: verification logic depends on actual implementation of starwars.go
 		return true
 	})).Return(nil)
 
