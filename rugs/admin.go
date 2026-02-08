@@ -191,7 +191,7 @@ func (c *AvatarCommand) handleURL(ctx *CommandContext) error {
 	dataURI := fmt.Sprintf("data:%s;base64,%s", contentType, base64Img)
 
 	// Update avatar
-	_, err = ctx.Session.UserUpdate("", dataURI)
+	_, err = ctx.Session.UserUpdate("", dataURI, "")
 	if err != nil {
 		return ctx.ReplyEphemeral(fmt.Sprintf("Failed to update avatar: %v", err))
 	}
@@ -290,7 +290,7 @@ func (c *AvatarCommand) handleUse(ctx *CommandContext) error {
 	base64Img := base64.StdEncoding.EncodeToString(data)
 	dataURI := fmt.Sprintf("data:%s;base64,%s", contentType, base64Img)
 
-	_, err = ctx.Session.UserUpdate("", dataURI)
+	_, err = ctx.Session.UserUpdate("", dataURI, "")
 	if err != nil {
 		return ctx.ReplyEphemeral(fmt.Sprintf("Failed to update avatar: %v", err))
 	}

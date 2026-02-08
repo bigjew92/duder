@@ -258,7 +258,7 @@ func (manager *DiscordManager) StartTyping(channelID string) bool {
 
 // SetAvatarByImage description
 func (manager *DiscordManager) SetAvatarByImage(base64 string) bool {
-	if _, err := manager.session.UserUpdate("", base64); err != nil {
+	if _, err := manager.session.UserUpdate("", base64, ""); err != nil {
 		Duder.Log(LogVerbose, "[Duder.SetAvatarByImage] Unable to set avatar;", err.Error())
 		return false
 	}
