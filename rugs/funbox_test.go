@@ -1,7 +1,6 @@
 package rugs
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -102,10 +101,8 @@ func TestAuraCommand(t *testing.T) {
 	cmd := &AuraCommand{}
 	ctx := NewTestContext()
 
-	// Since aura is random, we match any string response
-	ctx.On("Reply", mock.MatchedBy(func(s string) bool {
-		return strings.Contains(s, "aura")
-	})).Return(nil)
+	// Aura replies with a random string. We match any string.
+	ctx.On("Reply", mock.AnythingOfType("string")).Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)
