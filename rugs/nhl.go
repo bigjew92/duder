@@ -29,6 +29,12 @@ func (c *NHLCommand) Options() []*discordgo.ApplicationCommandOption {
 	return []*discordgo.ApplicationCommandOption{
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "name",
+			Description: "Player or team name",
+			Required:    true,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "type",
 			Description: "Search type (default: team)",
 			Required:    false,
@@ -36,12 +42,6 @@ func (c *NHLCommand) Options() []*discordgo.ApplicationCommandOption {
 				{Name: "Team", Value: "team"},
 				{Name: "Player", Value: "player"},
 			},
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "name",
-			Description: "Player or team name",
-			Required:    true,
 		},
 	}
 }
