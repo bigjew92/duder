@@ -68,15 +68,10 @@ func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
 	}
 
 	type SearchResult struct {
-		PlayerID  int `json:"playerId"`
-		FirstName struct {
-			Default string `json:"default"`
-		} `json:"firstName"`
-		LastName struct {
-			Default string `json:"default"`
-		} `json:"lastName"`
+		PlayerID   string `json:"playerId"`
+		Name       string `json:"name"`
 		TeamAbbrev string `json:"teamAbbrev"`
-		Position   string `json:"position"`
+		Position   string `json:"positionCode"`
 	}
 
 	var results []SearchResult
@@ -90,7 +85,7 @@ func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
 
 	player := results[0]
 
-	landingURL := fmt.Sprintf("https://api-web.nhle.com/v1/player/%d/landing", player.PlayerID)
+	landingURL := fmt.Sprintf("https://api-web.nhle.com/v1/player/%s/landing", player.PlayerID)
 	landingResp, err := ctx.HTTPGetString(10, landingURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch player stats.")
@@ -125,7 +120,7 @@ func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
 	}
 
 	stats := landing.FeaturedStats.RegularSeason.SubSeason
-	name := fmt.Sprintf("%s %s", player.FirstName.Default, player.LastName.Default)
+	name := player.Name
 	embed := NewEmbed().
 		SetTitle(fmt.Sprintf("%s (%s)", name, player.Position)).
 		SetDescription(fmt.Sprintf("Season %d-%d", stats.Season/10000, stats.Season%10000)).

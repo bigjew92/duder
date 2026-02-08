@@ -13,38 +13,33 @@ func TestMLBCommand_Player(t *testing.T) {
 
 	playerName := "Ohtani"
 
-	searchResponse := `{
-		"search_player_all": {
-			"queryResults": {
-				"totalSize": "1",
-				"row": {
-					"player_id": "660271",
-					"name_display_first_last": "Shohei Ohtani",
-					"team_full": "Los Angeles Dodgers",
-					"position": "DH"
-				}
-			}
-		}
+	playersResponse := `{
+		"people": [{
+			"id": 660271,
+			"fullName": "Shohei Ohtani",
+			"currentTeam": {"id": 119},
+			"primaryPosition": {"abbreviation": "DH"}
+		}]
 	}`
 
 	statsResponse := `{
-		"sport_hitting_tm": {
-			"queryResults": {
-				"totalSize": "1",
-				"row": {
+		"stats": [{
+			"splits": [{
+				"stat": {
 					"avg": ".304",
-					"hr": "54",
-					"rbi": "130",
+					"homeRuns": 54,
+					"rbi": 130,
 					"ops": "1.036"
-				}
-			}
-		}
+				},
+				"team": {"name": "Los Angeles Dodgers"}
+			}]
+		}]
 	}`
 
 	ctx.On("GetString", "type").Return("player")
 	ctx.On("GetString", "name").Return(playerName)
 	ctx.On("DeferReply").Return(nil)
-	ctx.On("HTTPGetString", 10, mock.AnythingOfType("string"), map[string]string(nil)).Return(searchResponse, nil).Once()
+	ctx.On("HTTPGetString", 10, mock.AnythingOfType("string"), map[string]string(nil)).Return(playersResponse, nil).Once()
 	ctx.On("HTTPGetString", 10, mock.AnythingOfType("string"), map[string]string(nil)).Return(statsResponse, nil).Once()
 	ctx.On("FollowUpEmbed", mock.Anything).Return(nil)
 
