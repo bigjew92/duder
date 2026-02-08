@@ -101,6 +101,26 @@ func (manager *ConfigManager) Load() error {
 		manager.data = config
 	}
 
+	// Override with environment variables if set
+	if val := os.Getenv("BOT_TOKEN"); val != "" {
+		Duder.Logf(LogVerbose, "BOT_TOKEN set from environment")
+		config.BotToken = val
+	}
+	if val := os.Getenv("OWNER_ID"); val != "" {
+		Duder.Logf(LogVerbose, "OWNER_ID set from environment")
+		config.OwnerID = val
+	}
+
+	// Ensure required values are present
+	if config.BotToken == "" {
+		config.BotToken = Duder.GetUserInput("Bot token", true)
+	}
+	if config.OwnerID == "" {
+		config.OwnerID = Duder.GetUserInput("Owner ID", true)
+	}
+
+	manager.data = config
+
 	Duder.Log(LogVerbose, "Configuration file successfully loaded")
 
 	return nil
