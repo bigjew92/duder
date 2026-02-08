@@ -78,7 +78,7 @@ func TestBigCommand(t *testing.T) {
 	ctx := NewTestContext()
 
 	ctx.On("GetString", "text").Return("abc")
-	ctx.On("Reply", "🇦🇧🇨").Return(nil)
+	ctx.On("Reply", ":regional_indicator_a::regional_indicator_b::regional_indicator_c:").Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)
