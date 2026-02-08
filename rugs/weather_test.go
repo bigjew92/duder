@@ -4,7 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bwmarrin/discordgo"
+	"os"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -13,59 +14,38 @@ func TestWeatherCommand(t *testing.T) {
 	cmd := &WeatherCommand{}
 	ctx := NewTestContext()
 
-	// Set API key for testing
-	t.Setenv("OPENWEATHER_API_KEY", "test-api-key")
+	// Mock top-level options
+	ctx.On("GetString", "set_key").Return("")
+	ctx.On("GetString", "set_default").Return("")
+	ctx.On("GetString", "location").Return("Seattle, WA")
 
-	// Mock Interaction
-	ctx.On("Interaction").Return(&discordgo.InteractionCreate{
-		Interaction: &discordgo.Interaction{
-			Type: discordgo.InteractionApplicationCommand,
-			Data: discordgo.ApplicationCommandInteractionData{
-				Options: []*discordgo.ApplicationCommandInteractionDataOption{
-					{
-						Name: "check",
-						Type: discordgo.ApplicationCommandOptionSubCommand,
-						Options: []*discordgo.ApplicationCommandInteractionDataOption{
-							{
-								Name:  "location",
-								Type:  discordgo.ApplicationCommandOptionString,
-								Value: "London",
-							},
-						},
-					},
-				},
-			},
-		},
-	})
-	// Expect GetString for location since handleCheck calls it
-	ctx.On("GetString", "location").Return("London")
+	// Verify ApplicationCommandData is NOT called for subcommands anymore
+	// ctx.On("Interaction")... (Removed)
 
+	// Mock storage for API key
+	// We need to ensure getAPIKey returns a value.
+	// Since we can't easily mock the storage interna without changing the test structure,
+	// we'll rely on the default behavior or mock the storage if possible.
+	// However, WeatherCommand creates its own storage if nil.
+	// For testing, we might need to inject storage or set the env var.
+	os.Setenv("OPENWEATHER_API_KEY", "test-key")
+	defer os.Unsetenv("OPENWEATHER_API_KEY")
+
+	// Mock HTTP request for geocoding
 	ctx.On("DeferReply").Return(nil)
-	// Actually, CommandContextImpl.GetString uses ctx.Options() which uses ctx.Interaction().
-	// usage in weather.go: location := ctx.GetString("location")
-	// usage in CommandContextImpl.GetString: logic iterates over options.
-	// BUT weather.go line 98 calling ctx.Interaction() directly suggests it might resolve subcommands from Interaction data.
-
-	// Let's verify weather.go content around line 98 first to be sure.
-	// I will use view_file to check weather.go line 98.
-
-	ctx.On("DeferReply").Return(nil)
-
-	// Mock Geocoding
 	ctx.On("HTTPGetString", 10, mock.MatchedBy(func(url string) bool {
-		return strings.Contains(url, "api.openweathermap.org/geo/1.0/direct") && strings.Contains(url, "London")
-	}), map[string]string(nil)).Return(`[{"name":"London","lat":51.5074,"lon":-0.1278,"country":"GB"}]`, nil)
+		return strings.Contains(url, "geo/1.0/direct") && strings.Contains(url, "Seattle")
+	}), map[string]string(nil)).
+		Return(`[{"name":"Seattle","lat":47.6062,"lon":-122.3321,"country":"US","state":"Washington"}]`, nil)
 
-	// Mock Forecast
+	// Mock HTTP request for forecast
 	ctx.On("HTTPGetString", 10, mock.MatchedBy(func(url string) bool {
-		return strings.Contains(url, "api.openweathermap.org/data/2.5/forecast") && strings.Contains(url, "lat=51.5074")
-	}), map[string]string(nil)).Return(`{"list":[{"main":{"temp":55.0,"humidity":75},"weather":[{"main":"Clouds","description":"scattered clouds"}],"wind":{"speed":10.5}}],"city":{"name":"London"}}`, nil)
+		return strings.Contains(url, "data/2.5/forecast") && strings.Contains(url, "lat=47.6062")
+	}), map[string]string(nil)).
+		Return(`{"list":[{"dt":1600000000,"main":{"temp":65.0,"feels_like":63.0,"humidity":50},"weather":[{"description":"clear sky"}],"wind":{"speed":5.0},"dt_txt":"2020-09-13 12:00:00"}]}`, nil)
 
-	// Expectation
-	ctx.On("FollowUpEmbed", mock.MatchedBy(func(embed interface{}) bool {
-		// Just checking it calls FollowUpEmbed is enough for now
-		return true
-	})).Return(nil)
+	// Expect an embed reply
+	ctx.On("FollowUpEmbed", mock.AnythingOfType("*discordgo.MessageEmbed")).Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)

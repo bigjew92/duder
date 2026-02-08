@@ -36,6 +36,10 @@ func HTTPGet(timeout int, uri string, headers map[string]string) ([]byte, error)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(body))
+	}
+
 	return body, nil
 }
 

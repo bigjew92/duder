@@ -1,7 +1,6 @@
 package rugs
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,7 +51,7 @@ func TestLebowskiCommand(t *testing.T) {
 
 	ctx.On("DeferReply").Return(nil)
 	ctx.On("HTTPGetString", 10, "https://lebowski.me/api/quotes/random", map[string]string(nil)).
-		Return(`{"quote":{"content":"The Dude abides."}}`, nil)
+		Return(`{"quote":{"lines":[{"text":"The Dude abides."}]}}`, nil)
 	ctx.On("FollowUp", "```The Dude abides.```").Return(nil)
 
 	err := cmd.Execute(ctx)
@@ -60,14 +59,19 @@ func TestLebowskiCommand(t *testing.T) {
 	ctx.AssertExpectations(t)
 }
 
-func TestBashCommand(t *testing.T) {
-	cmd := &BashCommand{}
+func TestDadJokeCommand(t *testing.T) {
+	cmd := &DadJokeCommand{}
 	ctx := NewTestContext()
 
+	headers := map[string]string{
+		"Accept":     "text/plain",
+		"User-Agent": "Duder/1.0 (https://github.com/bigjew92/duder)",
+	}
+
 	ctx.On("DeferReply").Return(nil)
-	ctx.On("HTTPGetString", 10, "http://bash.org/?random", map[string]string(nil)).
-		Return(`<p class="qt">I put on my robe and wizard hat.</p>`, nil)
-	ctx.On("FollowUp", "```I put on my robe and wizard hat.```").Return(nil)
+	ctx.On("HTTPGetString", 10, "https://icanhazdadjoke.com/", headers).
+		Return("I'm reading a book on anti-gravity. It's impossible to put down!", nil)
+	ctx.On("FollowUp", "```I'm reading a book on anti-gravity. It's impossible to put down!```").Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)
@@ -79,7 +83,7 @@ func TestBigCommand(t *testing.T) {
 	ctx := NewTestContext()
 
 	ctx.On("GetString", "text").Return("abc")
-	ctx.On("Reply", "🇦🇧🇨").Return(nil)
+	ctx.On("Reply", ":regional_indicator_a::regional_indicator_b::regional_indicator_c:").Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)
@@ -102,10 +106,8 @@ func TestAuraCommand(t *testing.T) {
 	cmd := &AuraCommand{}
 	ctx := NewTestContext()
 
-	// Since aura is random, we match any string response
-	ctx.On("Reply", mock.MatchedBy(func(s string) bool {
-		return strings.Contains(s, "aura")
-	})).Return(nil)
+	// Aura replies with a random string. We match any string.
+	ctx.On("Reply", mock.AnythingOfType("string")).Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)

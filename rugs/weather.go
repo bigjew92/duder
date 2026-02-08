@@ -35,43 +35,22 @@ func (c *WeatherCommand) Description() string {
 func (c *WeatherCommand) Options() []*discordgo.ApplicationCommandOption {
 	return []*discordgo.ApplicationCommandOption{
 		{
-			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			Name:        "check",
-			Description: "Check weather for a location",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "location",
-					Description: "Location to check (or leave empty for saved location)",
-					Required:    false,
-				},
-			},
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "location",
+			Description: "Location to check (e.g., 'Seattle, WA')",
+			Required:    false,
 		},
 		{
-			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			Name:        "setlocation",
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "set_default",
 			Description: "Set your default location",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "location",
-					Description: "Your location (e.g., 'Seattle, WA')",
-					Required:    true,
-				},
-			},
+			Required:    false,
 		},
 		{
-			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			Name:        "setkey",
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "set_key",
 			Description: "Set the OpenWeatherMap API key (owner only)",
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "key",
-					Description: "The API key",
-					Required:    true,
-				},
-			},
+			Required:    false,
 		},
 	}
 }
@@ -95,31 +74,26 @@ func (c *WeatherCommand) getAPIKey() string {
 }
 
 func (c *WeatherCommand) Execute(ctx CommandContext) error {
-	data := ctx.Interaction().ApplicationCommandData()
-	if len(data.Options) == 0 {
-		return ctx.ReplyEphemeral("Please specify a subcommand.")
+	// Handle set_key
+	if key := ctx.GetString("set_key"); key != "" {
+		return c.handleSetKey(ctx, key)
 	}
 
-	subCmd := data.Options[0].Name
-
-	switch subCmd {
-	case "check":
-		return c.handleCheck(ctx)
-	case "setlocation":
-		return c.handleSetLocation(ctx)
-	case "setkey":
-		return c.handleSetKey(ctx)
+	// Handle set_default
+	if loc := ctx.GetString("set_default"); loc != "" {
+		return c.handleSetLocation(ctx, loc)
 	}
 
-	return ctx.ReplyEphemeral("Unknown subcommand.")
+	// Handle weather check
+	location := ctx.GetString("location")
+	return c.handleCheck(ctx, location)
 }
 
-func (c *WeatherCommand) handleSetKey(ctx CommandContext) error {
+func (c *WeatherCommand) handleSetKey(ctx CommandContext, key string) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the bot owner can set the API key.")
 	}
 
-	key := ctx.GetString("key")
 	storage := c.getStorage()
 	storage.SetNested(key, "settings", "api_key")
 	storage.Save()
@@ -127,12 +101,7 @@ func (c *WeatherCommand) handleSetKey(ctx CommandContext) error {
 	return ctx.ReplyEphemeral("API key set successfully!")
 }
 
-func (c *WeatherCommand) handleSetLocation(ctx CommandContext) error {
-	location := ctx.GetString("location")
-	if location == "" {
-		return ctx.ReplyEphemeral("Please provide a location.")
-	}
-
+func (c *WeatherCommand) handleSetLocation(ctx CommandContext, location string) error {
 	storage := c.getStorage()
 	storage.SetNested(location, "users", ctx.User().ID, "location")
 	storage.Save()
@@ -140,13 +109,11 @@ func (c *WeatherCommand) handleSetLocation(ctx CommandContext) error {
 	return ctx.Reply(fmt.Sprintf("Default location set to: %s", location))
 }
 
-func (c *WeatherCommand) handleCheck(ctx CommandContext) error {
+func (c *WeatherCommand) handleCheck(ctx CommandContext, location string) error {
 	apiKey := c.getAPIKey()
 	if apiKey == "" {
-		return ctx.ReplyEphemeral("Weather API key not configured. Ask the bot owner to set it with `/weather setkey`.")
+		return ctx.ReplyEphemeral("Weather API key not configured. Ask the bot owner to set it with `/weather set_key:`.")
 	}
-
-	location := ctx.GetString("location")
 	if location == "" {
 		// Try to get saved location
 		storage := c.getStorage()
@@ -158,7 +125,7 @@ func (c *WeatherCommand) handleCheck(ctx CommandContext) error {
 	}
 
 	if location == "" {
-		return ctx.ReplyEphemeral("Please provide a location or set a default with `/weather setlocation`.")
+		return ctx.ReplyEphemeral("Please provide a location or set a default with `/weather set_default:`.")
 	}
 
 	ctx.DeferReply()
@@ -167,7 +134,7 @@ func (c *WeatherCommand) handleCheck(ctx CommandContext) error {
 	geoURL := fmt.Sprintf("%s?q=%s&limit=1&appid=%s", geocodeURL, url.QueryEscape(location), apiKey)
 	resp, err := ctx.HTTPGetString(10, geoURL, nil)
 	if err != nil {
-		return ctx.FollowUp("Failed to geocode location.")
+		return ctx.FollowUp(fmt.Sprintf("Failed to geocode location: %v", err))
 	}
 
 	var geoResults []struct {
