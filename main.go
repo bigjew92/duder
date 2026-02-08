@@ -95,8 +95,6 @@ func main() {
 
 	// gracefully shut down the bot
 	Duder.teardown()
-
-	return
 }
 
 // DuderBot struct describes the DuderBot

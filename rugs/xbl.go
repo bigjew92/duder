@@ -187,6 +187,8 @@ func (c *XBLCommand) handleProfile(ctx *CommandContext) error {
 		SetColor(ColorGreen)
 
 	var gamerPic, gamerScore, accountTier, gamertagDisplay string
+
+	// Extract settings
 	for _, setting := range user.Settings {
 		switch setting.ID {
 		case "Gamertag":
