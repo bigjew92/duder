@@ -230,10 +230,25 @@ func (c *BananaBallCommand) handleTeam(ctx CommandContext, teamName string) erro
 		emoji = e
 	}
 
+	// Filter to only main teams
+	mainTeams := map[string]bool{
+		"savannah bananas": true,
+		"party animals":    true,
+		"firefighters":     true,
+		"texas tailgaters": true,
+	}
+
+	var filteredTeams []TeamStats
+	for _, t := range teams {
+		if mainTeams[strings.ToLower(t.Name)] {
+			filteredTeams = append(filteredTeams, t)
+		}
+	}
+
 	// Build league standings table
-	sort.Slice(teams, func(i, j int) bool {
-		iWinPct := float64(teams[i].Record.Wins) / float64(teams[i].Record.Wins+teams[i].Record.Losses)
-		jWinPct := float64(teams[j].Record.Wins) / float64(teams[j].Record.Wins+teams[j].Record.Losses)
+	sort.Slice(filteredTeams, func(i, j int) bool {
+		iWinPct := float64(filteredTeams[i].Record.Wins) / float64(filteredTeams[i].Record.Wins+filteredTeams[i].Record.Losses)
+		jWinPct := float64(filteredTeams[j].Record.Wins) / float64(filteredTeams[j].Record.Wins+filteredTeams[j].Record.Losses)
 		return iWinPct > jWinPct
 	})
 
@@ -241,7 +256,7 @@ func (c *BananaBallCommand) handleTeam(ctx CommandContext, teamName string) erro
 	standingsTable.WriteString("```\n")
 	standingsTable.WriteString(fmt.Sprintf("%-24s %7s\n", "Team", "W-L"))
 	standingsTable.WriteString(strings.Repeat("-", 33) + "\n")
-	for _, t := range teams {
+	for _, t := range filteredTeams {
 		record := fmt.Sprintf("%d-%d", t.Record.Wins, t.Record.Losses)
 		marker := " "
 		teamEmoji := ""

@@ -17,11 +17,10 @@ func TestNHLCommand_Player(t *testing.T) {
 	landingURL := "https://api-web.nhle.com/v1/player/8478402/landing"
 
 	searchResponse := `[{
-		"playerId": 8478402,
-		"firstName": {"default": "Connor"},
-		"lastName": {"default": "McDavid"},
+		"playerId": "8478402",
+		"name": "Connor McDavid",
 		"teamAbbrev": "EDM",
-		"position": "C"
+		"positionCode": "C"
 	}]`
 
 	landingResponse := `{
