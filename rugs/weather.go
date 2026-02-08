@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -86,11 +87,11 @@ func (c *WeatherCommand) getStorage() *Storage {
 func (c *WeatherCommand) getAPIKey() string {
 	storage := c.getStorage()
 	if key, ok := storage.GetNested("settings", "api_key"); ok {
-		if str, ok := key.(string); ok {
+		if str, ok := key.(string); ok && str != "" {
 			return str
 		}
 	}
-	return ""
+	return os.Getenv("OPENWEATHER_API_KEY")
 }
 
 func (c *WeatherCommand) Execute(ctx *CommandContext) error {

@@ -3,6 +3,7 @@ package rugs
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -71,11 +72,15 @@ func (c *YouTubeCommand) getStorage() *Storage {
 func (c *YouTubeCommand) getAPIKey() string {
 	storage := c.getStorage()
 	if key, ok := storage.GetNested("settings", "api_key"); ok {
-		if str, ok := key.(string); ok {
+		if str, ok := key.(string); ok && str != "" {
 			return str
 		}
 	}
-	return ""
+	// Fallback to environment variable
+	if key := os.Getenv("YOUTUBE_API_KEY"); key != "" {
+		return key
+	}
+	return os.Getenv("GOOGLE_API_KEY")
 }
 
 func (c *YouTubeCommand) getPlaylistID() string {
