@@ -184,12 +184,12 @@ For full functionality, you can also select:
 | `/dice` | Roll a dice |
 | `/8ball` | Ask the magic 8-ball |
 | `/lebowski` | Random Big Lebowski quote |
-| `/bash` | Random bash.org quote |
+| `/dadjoke` | Random dad joke |
 | `/big` | Convert text to big emoji letters |
 | `/smol` | Convert text to tiny letters |
 | `/aura` | Check your aura level |
 | `/lastseen` | Check when a user was last active |
-| `/weather` | Get weather forecast |
+| `/weather` | Get weather forecast (use `location:` option) |
 | `/meme` | Create a meme |
 | `/raffle` | Run a raffle |
 | `/rank` | Check your reaction XP rank |
@@ -240,10 +240,10 @@ func (c *HelloCommand) Options() []*discordgo.ApplicationCommandOption {
     }
 }
 
-func (c *HelloCommand) Execute(ctx *CommandContext) error {
+func (c *HelloCommand) Execute(ctx CommandContext) error {
     name := ctx.GetString("name")
     if name == "" {
-        name = ctx.User.Username
+        name = ctx.User().Username
     }
     return ctx.Reply("Hello, " + name + "! 👋")
 }
@@ -259,7 +259,7 @@ That's it! The command will automatically register with Discord.
 
 ### Command Context Helpers
 
-The `CommandContext` provides these helper methods:
+The `CommandContext` interface provides these helper methods:
 
 | Method | Description |
 |--------|-------------|
@@ -291,7 +291,7 @@ func (c *MyCommand) getStorage() *Storage {
     return c.storage
 }
 
-func (c *MyCommand) Execute(ctx *CommandContext) error {
+func (c *MyCommand) Execute(ctx CommandContext) error {
     storage := c.getStorage()
     
     // Read
