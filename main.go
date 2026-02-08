@@ -78,6 +78,11 @@ func main() {
 		log.Fatal("Failed to connect to Discord; ", err)
 	}
 
+	// register slash commands with Discord
+	if err := Duder.Discord.RegisterSlashCommands(); err != nil {
+		log.Fatal("Failed to register slash commands; ", err)
+	}
+
 	Duder.Log(LogGeneral, "Bot is now running.")
 
 	// register bot sg.shutdown channel to receive shutdown signals.
@@ -198,7 +203,7 @@ func (duder *DuderBot) Shutdown(message *discordgo.MessageCreate) {
 func (duder *DuderBot) teardown() (err error) {
 	duder.Discord.teardown()
 	duder.Permissions.teardown()
-	duder.Rugs.teardown()
+	// Go commands handle their own cleanup via storage.Save()
 
 	return
 }

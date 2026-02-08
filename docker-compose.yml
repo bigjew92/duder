@@ -1,0 +1,26 @@
+services:
+  duder:
+    image: ghcr.io/bigjew92/duder:latest
+    container_name: duder
+    command:
+      - /duder
+    working_dir: /app
+    restart: always
+    environment:
+      - PATH=/go/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - GOLANG_VERSION=1.20.8
+      - GOPATH=/go
+      # Required - Discord bot configuration
+      - BOT_TOKEN=${BOT_TOKEN}
+      - OWNER_ID=${OWNER_ID}
+      # Optional - API keys for specific commands
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+    volumes:
+      # Persist command storage files
+      - ./config/weather.json:/app/rugs/weather.json
+      - ./config/lastseen.json:/app/rugs/lastseen.json
+      - ./config/youtube.json:/app/rugs/youtube.json
+      - ./config/xbl.json:/app/rugs/xbl.json
+      - ./config/raffle.json:/app/rugs/raffle.json
+      - ./config/memes.json:/app/rugs/memes.json
+      - ./config/reactionrank.json:/app/rugs/reactionrank.json

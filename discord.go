@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bigjew92/duder/rugs"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -58,6 +59,7 @@ func (manager *DiscordManager) Connect() error {
 	manager.session.AddHandler(manager.onMessageReactionAdd)
 	manager.session.AddHandler(manager.onMessageReactionRemove)
 	manager.session.AddHandler(manager.onPresenceUpdate)
+	manager.session.AddHandler(manager.onInteractionCreate)
 
 	// open the Discord connection
 	Duder.Log(LogGeneral, "Opening Discord connection")
@@ -416,7 +418,7 @@ func (manager *DiscordManager) onMessageCreate(session *discordgo.Session, messa
 		Duder.Rugs.OnMessage(guild, message)
 	}
 
-	// check if the message has the command prefix
+	// check if the message has the command prefix (legacy - only internal commands now)
 	if strings.HasPrefix(message.Content, fmt.Sprintf("%s ", Duder.Config.CommandPrefix())) {
 		// strip the command prefix from the message content
 		content := message.Content[len(Duder.Config.CommandPrefix())+1 : len(message.Content)]
@@ -431,12 +433,12 @@ func (manager *DiscordManager) onMessageCreate(session *discordgo.Session, messa
 		Duder.Logf(LogVerbose, "Root command '%s'", cmd)
 
 		Duder.Logf(LogVerbose, "Command in %s(%s:%s) from %s(%s): %s", channel.Name, channel.ID, manager.ChannelTypeName(channel), message.Author.Username, message.Author.ID, message.Content)
-		// check for internal commands first
-		if !manager.runCommand(message, cmd, args) {
-			// run rug commands
-			Duder.Rugs.RunCommand(message, cmd, args)
-		}
+		// check for internal commands (update, shutdown)
+		manager.runCommand(message, cmd, args)
 	}
+
+	// Call message handlers for event-based commands (like lastseen)
+	Duder.Rugs.OnMessage(guild, message)
 }
 
 // onMessageReactionAdd description
@@ -445,6 +447,10 @@ func (manager *DiscordManager) onMessageReactionAdd(session *discordgo.Session, 
 	if !ok {
 		return
 	}
+	channel, err := manager.session.Channel(reaction.ChannelID)
+	if err != nil {
+		return
+	}
 	message, err := manager.session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
 	if err != nil {
 		return
@@ -454,7 +460,7 @@ func (manager *DiscordManager) onMessageReactionAdd(session *discordgo.Session, 
 		return
 	}
 
-	Duder.Rugs.OnMessageReactionAdd(guild, message, instigator.User, reaction.MessageReaction)
+	Duder.Rugs.OnReactionAdd(guild, channel, message, instigator.User, &reaction.Emoji)
 }
 
 // onMessageReactionRemove description
@@ -463,6 +469,10 @@ func (manager *DiscordManager) onMessageReactionRemove(session *discordgo.Sessio
 	if !ok {
 		return
 	}
+	channel, err := manager.session.Channel(reaction.ChannelID)
+	if err != nil {
+		return
+	}
 	message, err := manager.session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
 	if err != nil {
 		return
@@ -472,7 +482,7 @@ func (manager *DiscordManager) onMessageReactionRemove(session *discordgo.Sessio
 		return
 	}
 
-	Duder.Rugs.OnMessageReactionRemove(guild, message, instigator.User, reaction.MessageReaction)
+	Duder.Rugs.OnReactionRemove(guild, channel, message, instigator.User, &reaction.Emoji)
 }
 
 // onPresenceUpdate description
@@ -501,6 +511,35 @@ func (manager *DiscordManager) runCommand(message *discordgo.MessageCreate, cmd 
 	}
 
 	return false
+}
+
+// onInteractionCreate handles slash command interactions
+func (manager *DiscordManager) onInteractionCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	rugs.DefaultRegistry.HandleInteraction(session, interaction)
+}
+
+// RegisterSlashCommands registers all slash commands with Discord
+func (manager *DiscordManager) RegisterSlashCommands() error {
+	Duder.Log(LogGeneral, "Registering slash commands with Discord")
+
+	// Set owner ID for permission checks
+	rugs.SetOwnerID(Duder.Config.OwnerID())
+
+	// Register commands (empty guildID = global commands)
+	// For faster testing, you can set a specific guild ID
+	guildID := "" // Global commands (can take up to 1 hour to propagate)
+
+	if err := rugs.DefaultRegistry.RegisterWithDiscord(manager.session, guildID); err != nil {
+		return fmt.Errorf("failed to register slash commands: %w", err)
+	}
+
+	Duder.Logf(LogGeneral, "Registered %d slash commands", rugs.DefaultRegistry.CommandCount())
+	return nil
+}
+
+// Session returns the Discord session
+func (manager *DiscordManager) Session() *discordgo.Session {
+	return manager.session
 }
 
 // teardown description
