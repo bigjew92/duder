@@ -156,7 +156,7 @@ func (duder *DuderBot) Logf(channel uint8, format string, v ...interface{}) {
 func (duder *DuderBot) GetUserInput(prompt string, required bool) string {
 	var input string
 	for {
-		fmt.Print(fmt.Sprintf("%s: ", prompt))
+		fmt.Printf("%s: ", prompt)
 		fmt.Scanln(&input)
 		if len(input) > 0 || !required {
 			return input

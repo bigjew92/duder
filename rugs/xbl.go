@@ -183,7 +183,7 @@ func (c *XBLCommand) handleProfile(ctx *CommandContext) error {
 
 	// Build embed from settings
 	embed := NewEmbed().
-		SetTitle(fmt.Sprintf("🎮 Xbox Profile")).
+		SetTitle("🎮 Xbox Profile").
 		SetColor(ColorGreen)
 
 	var gamerPic, gamerScore, accountTier, gamertagDisplay string
