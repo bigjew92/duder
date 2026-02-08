@@ -100,7 +100,7 @@ If you've never created a Discord bot before, follow these steps:
 3. Under **"Token"**, click **"Reset Token"** and then **"Copy"**
 4. Save this token securely - this is your `botToken` for `config.json`
 
-> ⚠️ **Never share your bot token!** If leaked, anyone can control your bot.
+> **Never share your bot token!** If leaked, anyone can control your bot.
 
 ### Step 3: Enable Required Intents
 
@@ -108,9 +108,9 @@ On the same **Bot** page, scroll down to **"Privileged Gateway Intents"** and en
 
 | Intent | Required For |
 |--------|-------------|
-| ✅ **Presence Intent** | `/lastseen` command (tracking online status) |
-| ✅ **Server Members Intent** | Accessing member information |
-| ✅ **Message Content Intent** | Reading message content for event handlers |
+| **Presence Intent** | `/lastseen` command (tracking online status) |
+| **Server Members Intent** | Accessing member information |
+| **Message Content Intent** | Reading message content for event handlers |
 
 Click **"Save Changes"** at the bottom.
 
@@ -123,27 +123,27 @@ Click **"Save Changes"** at the bottom.
 
 | Scope | Purpose |
 |-------|---------|
-| ✅ `bot` | Allows the bot to join servers |
-| ✅ `applications.commands` | **Required** for slash commands to appear |
+| `bot` | Allows the bot to join servers |
+| `applications.commands` | **Required** for slash commands to appear |
 
 **Select these BOT PERMISSIONS** (checkboxes that appear after selecting `bot`):
 
 | Permission | Purpose |
 |------------|---------|
-| ✅ Send Messages | Reply to commands |
-| ✅ Send Messages in Threads | Reply in threads |
-| ✅ Embed Links | Send rich embed messages |
-| ✅ Attach Files | Send images (cat pics, memes) |
-| ✅ Read Message History | Access message context |
-| ✅ Add Reactions | React to messages |
-| ✅ Use External Emojis | Use emojis from other servers |
-| ✅ Change Nickname | Allow nickname changes |
+| Send Messages | Reply to commands |
+| Send Messages in Threads | Reply in threads |
+| Embed Links | Send rich embed messages |
+| Attach Files | Send images (cat pics, memes) |
+| Read Message History | Access message context |
+| Add Reactions | React to messages |
+| Use External Emojis | Use emojis from other servers |
+| Change Nickname | Allow nickname changes |
 
 For full functionality, you can also select:
 | Permission | Purpose |
 |------------|---------|
-| ☐ Manage Messages | Delete messages (optional) |
-| ☐ Manage Roles | Manage user roles (optional) |
+| Manage Messages | Delete messages (optional) |
+| Manage Roles | Manage user roles (optional) |
 
 ### Step 5: Invite the Bot to Your Server
 
@@ -329,4 +329,4 @@ func (c *MyCommand) OnReactionRemove(ctx *ReactionContext) {
 
 ## License
 
-MIT
+GNU General Public License v3.0
