@@ -185,61 +185,58 @@ func (c *MLBCommand) handlePlayer(ctx CommandContext, playerName string) error {
 }
 
 func (c *MLBCommand) handleTeam(ctx CommandContext, teamName string) error {
-	// MLB standings API - use current year
+	// MLB standings API - new statsapi endpoint
 	currentYear := time.Now().Year()
-	standingsURL := fmt.Sprintf("http://lookup-service-prod.mlb.com/json/named.standings_schedule_date.bam?league_id='103','104'&season='%d'&stand_type='div'&schedule_game_date.game_date='%d-09-30'", currentYear, currentYear)
+	standingsURL := fmt.Sprintf("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=%d", currentYear)
 	resp, err := ctx.HTTPGetString(10, standingsURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch MLB standings.")
 	}
 
-	type TeamStanding struct {
-		TeamShort string `json:"team_short"`
-		TeamFull  string `json:"team_full"`
-		Wins      string `json:"w"`
-		Losses    string `json:"l"`
-		Pct       string `json:"pct"`
-		GB        string `json:"gb"`
-		Division  string `json:"division"`
+	type TeamRecord struct {
+		Team struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"team"`
+		Wins              int    `json:"wins"`
+		Losses            int    `json:"losses"`
+		WinningPercentage string `json:"winningPercentage"`
+		GamesBack         string `json:"gamesBack"`
+		DivisionRank      string `json:"divisionRank"`
+	}
+
+	type DivisionRecord struct {
+		Division struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"division"`
+		TeamRecords []TeamRecord `json:"teamRecords"`
 	}
 
 	var standingsResult struct {
-		StandingsScheduleDate struct {
-			StandingsAll struct {
-				QueryResults struct {
-					TotalSize string          `json:"totalSize"`
-					Row       json.RawMessage `json:"row"`
-				} `json:"queryResults"`
-			} `json:"standings_all"`
-		} `json:"standings_schedule_date"`
+		Records []DivisionRecord `json:"records"`
 	}
 
 	if err := json.Unmarshal([]byte(resp), &standingsResult); err != nil {
 		return ctx.FollowUp("Failed to parse standings.")
 	}
 
-	totalSize, _ := strconv.Atoi(standingsResult.StandingsScheduleDate.StandingsAll.QueryResults.TotalSize)
-	if totalSize == 0 {
-		return ctx.FollowUp("No standings data available.")
-	}
-
-	var teams []TeamStanding
-	if totalSize == 1 {
-		var single TeamStanding
-		json.Unmarshal(standingsResult.StandingsScheduleDate.StandingsAll.QueryResults.Row, &single)
-		teams = []TeamStanding{single}
-	} else {
-		json.Unmarshal(standingsResult.StandingsScheduleDate.StandingsAll.QueryResults.Row, &teams)
-	}
-
-	// Find team
+	// Find team across all divisions
 	nameLower := strings.ToLower(teamName)
-	var match *TeamStanding
+	var match *TeamRecord
+	var matchDivision *DivisionRecord
 
-	for _, team := range teams {
-		if strings.Contains(strings.ToLower(team.TeamFull), nameLower) ||
-			strings.EqualFold(team.TeamShort, teamName) {
-			match = &team
+	for i := range standingsResult.Records {
+		div := &standingsResult.Records[i]
+		for j := range div.TeamRecords {
+			team := &div.TeamRecords[j]
+			if strings.Contains(strings.ToLower(team.Team.Name), nameLower) {
+				match = team
+				matchDivision = div
+				break
+			}
+		}
+		if match != nil {
 			break
 		}
 	}
@@ -249,35 +246,28 @@ func (c *MLBCommand) handleTeam(ctx CommandContext, teamName string) error {
 	}
 
 	// Build division standings table
-	var divisionTeams []TeamStanding
-	for _, team := range teams {
-		if team.Division == match.Division {
-			divisionTeams = append(divisionTeams, team)
-		}
-	}
-
 	var standingsTable strings.Builder
 	standingsTable.WriteString("```\n")
 	standingsTable.WriteString(fmt.Sprintf("%-22s %7s %5s %5s\n", "Team", "W-L", "PCT", "GB"))
 	standingsTable.WriteString(strings.Repeat("-", 42) + "\n")
-	for _, team := range divisionTeams {
-		record := fmt.Sprintf("%s-%s", team.Wins, team.Losses)
+	for _, team := range matchDivision.TeamRecords {
+		record := fmt.Sprintf("%d-%d", team.Wins, team.Losses)
 		marker := ""
-		if team.TeamShort == match.TeamShort {
+		if team.Team.ID == match.Team.ID {
 			marker = "▶"
 		}
-		standingsTable.WriteString(fmt.Sprintf("%s%-21s %7s %5s %5s\n", marker, team.TeamFull, record, team.Pct, team.GB))
+		standingsTable.WriteString(fmt.Sprintf("%s%-21s %7s %5s %5s\n", marker, team.Team.Name, record, team.WinningPercentage, team.GamesBack))
 	}
 	standingsTable.WriteString("```")
 
 	embed := NewEmbed().
-		SetTitle(match.TeamFull).
-		SetDescription(match.Division).
+		SetTitle(match.Team.Name).
+		SetDescription(matchDivision.Division.Name).
 		SetColor(ColorBlue).
-		AddField("Record", fmt.Sprintf("%s-%s", match.Wins, match.Losses), true).
-		AddField("Win %", match.Pct, true).
-		AddField("GB", match.GB, true).
-		AddField(fmt.Sprintf("%s Standings", match.Division), standingsTable.String(), false)
+		AddField("Record", fmt.Sprintf("%d-%d", match.Wins, match.Losses), true).
+		AddField("Win %", match.WinningPercentage, true).
+		AddField("GB", match.GamesBack, true).
+		AddField(fmt.Sprintf("%s Standings", matchDivision.Division.Name), standingsTable.String(), false)
 
 	return ctx.FollowUpEmbed(embed.Build())
 }

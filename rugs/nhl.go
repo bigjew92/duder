@@ -61,7 +61,7 @@ func (c *NHLCommand) Execute(ctx CommandContext) error {
 }
 
 func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
-	searchURL := fmt.Sprintf("https://search.d3.nhle.com/v1/search/player?culture=en-us&limit=5&q=%s", url.QueryEscape(playerName))
+	searchURL := fmt.Sprintf("https://search.d3.nhle.com/api/v1/search/player?culture=en-us&limit=5&q=%s", url.QueryEscape(playerName))
 	searchResp, err := ctx.HTTPGetString(10, searchURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to contact NHL API.")

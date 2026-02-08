@@ -13,7 +13,7 @@ func TestNHLCommand_Player(t *testing.T) {
 	ctx := NewTestContext()
 
 	playerName := "McDavid"
-	searchURL := fmt.Sprintf("https://search.d3.nhle.com/v1/search/player?culture=en-us&limit=5&q=%s", playerName)
+	searchURL := fmt.Sprintf("https://search.d3.nhle.com/api/v1/search/player?culture=en-us&limit=5&q=%s", playerName)
 	landingURL := "https://api-web.nhle.com/v1/player/8478402/landing"
 
 	searchResponse := `[{

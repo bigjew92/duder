@@ -61,22 +61,17 @@ func TestMLBCommand_Team(t *testing.T) {
 	teamName := "Yankees"
 
 	standingsResponse := `{
-		"standings_schedule_date": {
-			"standings_all": {
-				"queryResults": {
-					"totalSize": "1",
-					"row": {
-						"team_short": "NYY",
-						"team_full": "New York Yankees",
-						"w": "94",
-						"l": "68",
-						"pct": ".580",
-						"gb": "0",
-						"division": "AL East"
-					}
-				}
-			}
-		}
+		"records": [{
+			"division": {"id": 201, "name": "American League East"},
+			"teamRecords": [{
+				"team": {"id": 147, "name": "New York Yankees"},
+				"wins": 94,
+				"losses": 68,
+				"winningPercentage": ".580",
+				"gamesBack": "-",
+				"divisionRank": "1"
+			}]
+		}]
 	}`
 
 	ctx.On("GetString", "type").Return("team")
@@ -96,22 +91,17 @@ func TestMLBCommand_DefaultsToTeam(t *testing.T) {
 	ctx := NewTestContext()
 
 	standingsResponse := `{
-		"standings_schedule_date": {
-			"standings_all": {
-				"queryResults": {
-					"totalSize": "1",
-					"row": {
-						"team_short": "LAD",
-						"team_full": "Los Angeles Dodgers",
-						"w": "98",
-						"l": "64",
-						"pct": ".605",
-						"gb": "0",
-						"division": "NL West"
-					}
-				}
-			}
-		}
+		"records": [{
+			"division": {"id": 203, "name": "National League West"},
+			"teamRecords": [{
+				"team": {"id": 119, "name": "Los Angeles Dodgers"},
+				"wins": 98,
+				"losses": 64,
+				"winningPercentage": ".605",
+				"gamesBack": "-",
+				"divisionRank": "1"
+			}]
+		}]
 	}`
 
 	// Empty type should default to team
