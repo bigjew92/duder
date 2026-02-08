@@ -178,6 +178,7 @@ For full functionality, you can also select:
 | `/ping` | Check if bot is alive |
 | `/status` | Set bot status (owner only) |
 | `/avatar` | Manage bot avatar (owner only) |
+| `/bananaball` | Banana Ball player/team stats lookup |
 | `/catfact` | Random cat fact |
 | `/catpic` | Random cat picture |
 | `/catgif` | Random cat GIF |
