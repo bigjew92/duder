@@ -130,20 +130,17 @@ func (c *RaffleCommand) saveRaffle(guildID string, raffle *raffleData) {
 	storage.Save()
 }
 
-func (c *RaffleCommand) Execute(ctx *CommandContext) error {
-	if ctx.Guild == nil {
+func (c *RaffleCommand) Execute(ctx CommandContext) error {
+	if ctx.Guild() == nil {
 		return ctx.ReplyEphemeral("Raffles can only be run in servers.")
 	}
 
-	data := ctx.Interaction.ApplicationCommandData()
+	data := ctx.Interaction().ApplicationCommandData()
 	if len(data.Options) == 0 {
 		return ctx.ReplyEphemeral("Please specify a subcommand.")
 	}
 
 	subCmd := data.Options[0].Name
-	for _, opt := range data.Options[0].Options {
-		ctx.Options[opt.Name] = opt
-	}
 
 	switch subCmd {
 	case "start":
@@ -163,8 +160,8 @@ func (c *RaffleCommand) Execute(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Unknown subcommand.")
 }
 
-func (c *RaffleCommand) handleStart(ctx *CommandContext) error {
-	raffle := c.getRaffle(ctx.Guild.ID)
+func (c *RaffleCommand) handleStart(ctx CommandContext) error {
+	raffle := c.getRaffle(ctx.Guild().ID)
 	if raffle != nil && raffle.Active {
 		return ctx.ReplyEphemeral("A raffle is already active! Finish it first.")
 	}
@@ -174,11 +171,11 @@ func (c *RaffleCommand) handleStart(ctx *CommandContext) error {
 		Active:      true,
 		Description: description,
 		Entries:     []string{},
-		StartedBy:   ctx.User.ID,
+		StartedBy:   ctx.User().ID,
 		StartedAt:   time.Now(),
 	}
 
-	c.saveRaffle(ctx.Guild.ID, newRaffle)
+	c.saveRaffle(ctx.Guild().ID, newRaffle)
 
 	embed := NewEmbed().
 		SetTitle("🎉 Raffle Started!").
@@ -190,27 +187,27 @@ func (c *RaffleCommand) handleStart(ctx *CommandContext) error {
 	return ctx.ReplyEmbed(embed)
 }
 
-func (c *RaffleCommand) handleJoin(ctx *CommandContext) error {
-	raffle := c.getRaffle(ctx.Guild.ID)
+func (c *RaffleCommand) handleJoin(ctx CommandContext) error {
+	raffle := c.getRaffle(ctx.Guild().ID)
 	if raffle == nil || !raffle.Active {
 		return ctx.ReplyEphemeral("No active raffle.")
 	}
 
 	// Check if already entered
 	for _, e := range raffle.Entries {
-		if e == ctx.User.ID {
+		if e == ctx.User().ID {
 			return ctx.ReplyEphemeral("You're already in the raffle!")
 		}
 	}
 
-	raffle.Entries = append(raffle.Entries, ctx.User.ID)
-	c.saveRaffle(ctx.Guild.ID, raffle)
+	raffle.Entries = append(raffle.Entries, ctx.User().ID)
+	c.saveRaffle(ctx.Guild().ID, raffle)
 
-	return ctx.Reply(fmt.Sprintf("✅ **%s** joined the raffle! (%d entries)", ctx.User.Username, len(raffle.Entries)))
+	return ctx.Reply(fmt.Sprintf("✅ **%s** joined the raffle! (%d entries)", ctx.User().Username, len(raffle.Entries)))
 }
 
-func (c *RaffleCommand) handleLeave(ctx *CommandContext) error {
-	raffle := c.getRaffle(ctx.Guild.ID)
+func (c *RaffleCommand) handleLeave(ctx CommandContext) error {
+	raffle := c.getRaffle(ctx.Guild().ID)
 	if raffle == nil || !raffle.Active {
 		return ctx.ReplyEphemeral("No active raffle.")
 	}
@@ -218,7 +215,7 @@ func (c *RaffleCommand) handleLeave(ctx *CommandContext) error {
 	found := false
 	var newEntries []string
 	for _, e := range raffle.Entries {
-		if e == ctx.User.ID {
+		if e == ctx.User().ID {
 			found = true
 		} else {
 			newEntries = append(newEntries, e)
@@ -230,24 +227,24 @@ func (c *RaffleCommand) handleLeave(ctx *CommandContext) error {
 	}
 
 	raffle.Entries = newEntries
-	c.saveRaffle(ctx.Guild.ID, raffle)
+	c.saveRaffle(ctx.Guild().ID, raffle)
 
-	return ctx.Reply(fmt.Sprintf("❌ **%s** left the raffle.", ctx.User.Username))
+	return ctx.Reply(fmt.Sprintf("❌ **%s** left the raffle.", ctx.User().Username))
 }
 
-func (c *RaffleCommand) handleFinish(ctx *CommandContext) error {
-	raffle := c.getRaffle(ctx.Guild.ID)
+func (c *RaffleCommand) handleFinish(ctx CommandContext) error {
+	raffle := c.getRaffle(ctx.Guild().ID)
 	if raffle == nil || !raffle.Active {
 		return ctx.ReplyEphemeral("No active raffle.")
 	}
 
-	if raffle.StartedBy != ctx.User.ID && !ctx.IsOwner() {
+	if raffle.StartedBy != ctx.User().ID && !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the person who started the raffle can finish it.")
 	}
 
 	if len(raffle.Entries) == 0 {
 		raffle.Active = false
-		c.saveRaffle(ctx.Guild.ID, raffle)
+		c.saveRaffle(ctx.Guild().ID, raffle)
 		return ctx.Reply("❌ Raffle ended with no entries.")
 	}
 
@@ -256,7 +253,7 @@ func (c *RaffleCommand) handleFinish(ctx *CommandContext) error {
 	winnerID := raffle.Entries[winnerIdx]
 
 	raffle.Active = false
-	c.saveRaffle(ctx.Guild.ID, raffle)
+	c.saveRaffle(ctx.Guild().ID, raffle)
 
 	embed := NewEmbed().
 		SetTitle("🎉 Raffle Winner!").
@@ -269,24 +266,24 @@ func (c *RaffleCommand) handleFinish(ctx *CommandContext) error {
 	return ctx.ReplyEmbed(embed)
 }
 
-func (c *RaffleCommand) handleCancel(ctx *CommandContext) error {
-	raffle := c.getRaffle(ctx.Guild.ID)
+func (c *RaffleCommand) handleCancel(ctx CommandContext) error {
+	raffle := c.getRaffle(ctx.Guild().ID)
 	if raffle == nil || !raffle.Active {
 		return ctx.ReplyEphemeral("No active raffle.")
 	}
 
-	if raffle.StartedBy != ctx.User.ID && !ctx.IsOwner() {
+	if raffle.StartedBy != ctx.User().ID && !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the person who started the raffle can cancel it.")
 	}
 
 	raffle.Active = false
-	c.saveRaffle(ctx.Guild.ID, raffle)
+	c.saveRaffle(ctx.Guild().ID, raffle)
 
 	return ctx.Reply("🚫 Raffle cancelled.")
 }
 
-func (c *RaffleCommand) handleStatus(ctx *CommandContext) error {
-	raffle := c.getRaffle(ctx.Guild.ID)
+func (c *RaffleCommand) handleStatus(ctx CommandContext) error {
+	raffle := c.getRaffle(ctx.Guild().ID)
 	if raffle == nil || !raffle.Active {
 		return ctx.Reply("No active raffle.")
 	}

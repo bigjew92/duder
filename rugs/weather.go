@@ -94,16 +94,13 @@ func (c *WeatherCommand) getAPIKey() string {
 	return os.Getenv("OPENWEATHER_API_KEY")
 }
 
-func (c *WeatherCommand) Execute(ctx *CommandContext) error {
-	data := ctx.Interaction.ApplicationCommandData()
+func (c *WeatherCommand) Execute(ctx CommandContext) error {
+	data := ctx.Interaction().ApplicationCommandData()
 	if len(data.Options) == 0 {
 		return ctx.ReplyEphemeral("Please specify a subcommand.")
 	}
 
 	subCmd := data.Options[0].Name
-	for _, opt := range data.Options[0].Options {
-		ctx.Options[opt.Name] = opt
-	}
 
 	switch subCmd {
 	case "check":
@@ -117,7 +114,7 @@ func (c *WeatherCommand) Execute(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Unknown subcommand.")
 }
 
-func (c *WeatherCommand) handleSetKey(ctx *CommandContext) error {
+func (c *WeatherCommand) handleSetKey(ctx CommandContext) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the bot owner can set the API key.")
 	}
@@ -130,20 +127,20 @@ func (c *WeatherCommand) handleSetKey(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("API key set successfully!")
 }
 
-func (c *WeatherCommand) handleSetLocation(ctx *CommandContext) error {
+func (c *WeatherCommand) handleSetLocation(ctx CommandContext) error {
 	location := ctx.GetString("location")
 	if location == "" {
 		return ctx.ReplyEphemeral("Please provide a location.")
 	}
 
 	storage := c.getStorage()
-	storage.SetNested(location, "users", ctx.User.ID, "location")
+	storage.SetNested(location, "users", ctx.User().ID, "location")
 	storage.Save()
 
 	return ctx.Reply(fmt.Sprintf("Default location set to: %s", location))
 }
 
-func (c *WeatherCommand) handleCheck(ctx *CommandContext) error {
+func (c *WeatherCommand) handleCheck(ctx CommandContext) error {
 	apiKey := c.getAPIKey()
 	if apiKey == "" {
 		return ctx.ReplyEphemeral("Weather API key not configured. Ask the bot owner to set it with `/weather setkey`.")
@@ -153,7 +150,7 @@ func (c *WeatherCommand) handleCheck(ctx *CommandContext) error {
 	if location == "" {
 		// Try to get saved location
 		storage := c.getStorage()
-		if saved, ok := storage.GetNested("users", ctx.User.ID, "location"); ok {
+		if saved, ok := storage.GetNested("users", ctx.User().ID, "location"); ok {
 			if str, ok := saved.(string); ok {
 				location = str
 			}
@@ -168,7 +165,7 @@ func (c *WeatherCommand) handleCheck(ctx *CommandContext) error {
 
 	// Geocode the location
 	geoURL := fmt.Sprintf("%s?q=%s&limit=1&appid=%s", geocodeURL, url.QueryEscape(location), apiKey)
-	resp, err := HTTPGetString(10, geoURL, nil)
+	resp, err := ctx.HTTPGetString(10, geoURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to geocode location.")
 	}
@@ -188,7 +185,7 @@ func (c *WeatherCommand) handleCheck(ctx *CommandContext) error {
 
 	// Get forecast
 	fcURL := fmt.Sprintf("%s?lat=%f&lon=%f&units=imperial&appid=%s", forecastURL, geo.Lat, geo.Lon, apiKey)
-	resp, err = HTTPGetString(10, fcURL, nil)
+	resp, err = ctx.HTTPGetString(10, fcURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to get forecast.")
 	}

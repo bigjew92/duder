@@ -59,17 +59,17 @@ func (c *RankCommand) setUserXP(guildID, userID string, xp int) {
 	storage.Save()
 }
 
-func (c *RankCommand) Execute(ctx *CommandContext) error {
-	if ctx.Guild == nil {
+func (c *RankCommand) Execute(ctx CommandContext) error {
+	if ctx.Guild() == nil {
 		return ctx.ReplyEphemeral("Ranks are server-specific.")
 	}
 
 	targetUser := ctx.GetUser("user")
 	if targetUser == nil {
-		targetUser = ctx.User
+		targetUser = ctx.User()
 	}
 
-	xp := c.getUserXP(ctx.Guild.ID, targetUser.ID)
+	xp := c.getUserXP(ctx.Guild().ID, targetUser.ID)
 	level := xp / 100
 
 	embed := NewEmbed().
@@ -142,13 +142,13 @@ func (c *LeaderboardCommand) getRankStorage() *Storage {
 	return c.rankCmd.getStorage()
 }
 
-func (c *LeaderboardCommand) Execute(ctx *CommandContext) error {
-	if ctx.Guild == nil {
+func (c *LeaderboardCommand) Execute(ctx CommandContext) error {
+	if ctx.Guild() == nil {
 		return ctx.ReplyEphemeral("Leaderboards are server-specific.")
 	}
 
 	storage := c.getRankStorage()
-	guildData, ok := storage.GetNested("guilds", ctx.Guild.ID)
+	guildData, ok := storage.GetNested("guilds", ctx.Guild().ID)
 	if !ok {
 		return ctx.Reply("No rankings yet!")
 	}
@@ -179,7 +179,7 @@ func (c *LeaderboardCommand) Execute(ctx *CommandContext) error {
 
 	// Build embed
 	embed := NewEmbed().
-		SetTitle(fmt.Sprintf("🏆 %s Leaderboard", ctx.Guild.Name)).
+		SetTitle(fmt.Sprintf("🏆 %s Leaderboard", ctx.Guild().Name)).
 		SetColor(ColorGold)
 
 	for i := 0; i < 10 && i < len(entries); i++ {

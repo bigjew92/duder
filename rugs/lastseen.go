@@ -43,7 +43,7 @@ func (c *LastSeenCommand) getStorage() *Storage {
 	return c.storage
 }
 
-func (c *LastSeenCommand) Execute(ctx *CommandContext) error {
+func (c *LastSeenCommand) Execute(ctx CommandContext) error {
 	user := ctx.GetUser("user")
 	if user == nil {
 		return ctx.ReplyEphemeral("Please specify a user.")

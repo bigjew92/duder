@@ -87,16 +87,13 @@ func (c *XBLCommand) getAPIKey() string {
 	return ""
 }
 
-func (c *XBLCommand) Execute(ctx *CommandContext) error {
-	data := ctx.Interaction.ApplicationCommandData()
+func (c *XBLCommand) Execute(ctx CommandContext) error {
+	data := ctx.Interaction().ApplicationCommandData()
 	if len(data.Options) == 0 {
 		return ctx.ReplyEphemeral("Please specify a subcommand.")
 	}
 
 	subCmd := data.Options[0].Name
-	for _, opt := range data.Options[0].Options {
-		ctx.Options[opt.Name] = opt
-	}
 
 	switch subCmd {
 	case "profile":
@@ -110,7 +107,7 @@ func (c *XBLCommand) Execute(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Unknown subcommand.")
 }
 
-func (c *XBLCommand) handleSetKey(ctx *CommandContext) error {
+func (c *XBLCommand) handleSetKey(ctx CommandContext) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the bot owner can set the API key.")
 	}
@@ -123,16 +120,16 @@ func (c *XBLCommand) handleSetKey(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("OpenXBL API key set!")
 }
 
-func (c *XBLCommand) handleSetGamertag(ctx *CommandContext) error {
+func (c *XBLCommand) handleSetGamertag(ctx CommandContext) error {
 	gamertag := ctx.GetString("gamertag")
 	storage := c.getStorage()
-	storage.SetNested(gamertag, "users", ctx.User.ID, "gamertag")
+	storage.SetNested(gamertag, "users", ctx.User().ID, "gamertag")
 	storage.Save()
 
 	return ctx.Reply(fmt.Sprintf("Gamertag set to: %s", gamertag))
 }
 
-func (c *XBLCommand) handleProfile(ctx *CommandContext) error {
+func (c *XBLCommand) handleProfile(ctx CommandContext) error {
 	apiKey := c.getAPIKey()
 	if apiKey == "" {
 		return ctx.ReplyEphemeral("Xbox API key not configured.")
@@ -141,7 +138,7 @@ func (c *XBLCommand) handleProfile(ctx *CommandContext) error {
 	gamertag := ctx.GetString("gamertag")
 	if gamertag == "" {
 		storage := c.getStorage()
-		if saved, ok := storage.GetNested("users", ctx.User.ID, "gamertag"); ok {
+		if saved, ok := storage.GetNested("users", ctx.User().ID, "gamertag"); ok {
 			if str, ok := saved.(string); ok {
 				gamertag = str
 			}

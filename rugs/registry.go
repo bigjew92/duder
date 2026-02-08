@@ -136,13 +136,13 @@ func (r *Registry) HandleInteraction(s *discordgo.Session, i *discordgo.Interact
 		user = i.User
 	}
 
-	ctx := &CommandContext{
-		Session:     s,
-		Interaction: i,
-		Guild:       guild,
-		Channel:     channel,
-		User:        user,
-		Options:     options,
+	ctx := &CommandContextImpl{
+		SessionVal:     s,
+		InteractionVal: i,
+		GuildVal:       guild,
+		ChannelVal:     channel,
+		UserVal:        user,
+		OptionsVal:     options,
 	}
 
 	if err := cmd.Execute(ctx); err != nil {

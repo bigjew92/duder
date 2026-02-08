@@ -50,14 +50,14 @@ func (c *StarWarsCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *StarWarsCommand) Execute(ctx *CommandContext) error {
+func (c *StarWarsCommand) Execute(ctx CommandContext) error {
 	searchType := ctx.GetString("type")
 	name := ctx.GetString("name")
 
 	ctx.DeferReply()
 
 	searchURL := fmt.Sprintf("%s/%s/?search=%s", starWarsAPIBase, searchType, url.QueryEscape(name))
-	resp, err := HTTPGetString(10, searchURL, nil)
+	resp, err := ctx.HTTPGetString(10, searchURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to search Star Wars databank.")
 	}
@@ -80,7 +80,7 @@ func (c *StarWarsCommand) Execute(ctx *CommandContext) error {
 	return ctx.FollowUp("Unknown search type.")
 }
 
-func (c *StarWarsCommand) handlePerson(ctx *CommandContext, resp string) error {
+func (c *StarWarsCommand) handlePerson(ctx CommandContext, resp string) error {
 	var result struct {
 		Results []struct {
 			Name      string `json:"name"`
@@ -111,7 +111,7 @@ func (c *StarWarsCommand) handlePerson(ctx *CommandContext, resp string) error {
 	return ctx.FollowUpEmbed(embed)
 }
 
-func (c *StarWarsCommand) handlePlanet(ctx *CommandContext, resp string) error {
+func (c *StarWarsCommand) handlePlanet(ctx CommandContext, resp string) error {
 	var result struct {
 		Results []struct {
 			Name           string `json:"name"`
@@ -142,7 +142,7 @@ func (c *StarWarsCommand) handlePlanet(ctx *CommandContext, resp string) error {
 	return ctx.FollowUpEmbed(embed)
 }
 
-func (c *StarWarsCommand) handleStarship(ctx *CommandContext, resp string) error {
+func (c *StarWarsCommand) handleStarship(ctx CommandContext, resp string) error {
 	var result struct {
 		Results []struct {
 			Name             string `json:"name"`
@@ -177,7 +177,7 @@ func (c *StarWarsCommand) handleStarship(ctx *CommandContext, resp string) error
 	return ctx.FollowUpEmbed(embed)
 }
 
-func (c *StarWarsCommand) handleVehicle(ctx *CommandContext, resp string) error {
+func (c *StarWarsCommand) handleVehicle(ctx CommandContext, resp string) error {
 	var result struct {
 		Results []struct {
 			Name         string `json:"name"`
@@ -210,7 +210,7 @@ func (c *StarWarsCommand) handleVehicle(ctx *CommandContext, resp string) error 
 	return ctx.FollowUpEmbed(embed)
 }
 
-func (c *StarWarsCommand) handleSpecies(ctx *CommandContext, resp string) error {
+func (c *StarWarsCommand) handleSpecies(ctx CommandContext, resp string) error {
 	var result struct {
 		Results []struct {
 			Name            string `json:"name"`
@@ -242,7 +242,7 @@ func (c *StarWarsCommand) handleSpecies(ctx *CommandContext, resp string) error 
 	return ctx.FollowUpEmbed(embed)
 }
 
-func (c *StarWarsCommand) handleFilm(ctx *CommandContext, resp string) error {
+func (c *StarWarsCommand) handleFilm(ctx CommandContext, resp string) error {
 	var result struct {
 		Results []struct {
 			Title        string `json:"title"`

@@ -39,7 +39,7 @@ func (c *StatusCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *StatusCommand) Execute(ctx *CommandContext) error {
+func (c *StatusCommand) Execute(ctx CommandContext) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("You are not authorized to use this command.")
 	}
@@ -49,7 +49,7 @@ func (c *StatusCommand) Execute(ctx *CommandContext) error {
 		return ctx.ReplyEphemeral("Please provide a status message.")
 	}
 
-	err := ctx.Session.UpdateGameStatus(0, status)
+	err := ctx.Session().UpdateGameStatus(0, status)
 	if err != nil {
 		return ctx.ReplyEphemeral(fmt.Sprintf("Failed to update status: %v", err))
 	}
@@ -117,13 +117,13 @@ func (c *AvatarCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *AvatarCommand) Execute(ctx *CommandContext) error {
+func (c *AvatarCommand) Execute(ctx CommandContext) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("You are not authorized to use this command.")
 	}
 
 	// Determine subcommand from options
-	data := ctx.Interaction.ApplicationCommandData()
+	data := ctx.Interaction().ApplicationCommandData()
 	if len(data.Options) == 0 {
 		return ctx.ReplyEphemeral("Please specify a subcommand.")
 	}
@@ -131,9 +131,6 @@ func (c *AvatarCommand) Execute(ctx *CommandContext) error {
 	subCmd := data.Options[0].Name
 
 	// Parse subcommand options
-	for _, opt := range data.Options[0].Options {
-		ctx.Options[opt.Name] = opt
-	}
 
 	switch subCmd {
 	case "url":
@@ -149,7 +146,7 @@ func (c *AvatarCommand) Execute(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Unknown subcommand.")
 }
 
-func (c *AvatarCommand) handleURL(ctx *CommandContext) error {
+func (c *AvatarCommand) handleURL(ctx CommandContext) error {
 	url := ctx.GetString("url")
 	if url == "" {
 		return ctx.ReplyEphemeral("Please provide a URL.")
@@ -191,7 +188,7 @@ func (c *AvatarCommand) handleURL(ctx *CommandContext) error {
 	dataURI := fmt.Sprintf("data:%s;base64,%s", contentType, base64Img)
 
 	// Update avatar
-	_, err = ctx.Session.UserUpdate("", dataURI, "")
+	_, err = ctx.Session().UserUpdate("", dataURI, "")
 	if err != nil {
 		return ctx.ReplyEphemeral(fmt.Sprintf("Failed to update avatar: %v", err))
 	}
@@ -199,14 +196,14 @@ func (c *AvatarCommand) handleURL(ctx *CommandContext) error {
 	return ctx.Reply("Avatar updated successfully!")
 }
 
-func (c *AvatarCommand) handleSave(ctx *CommandContext) error {
+func (c *AvatarCommand) handleSave(ctx CommandContext) error {
 	filename := ctx.GetString("filename")
 	if filename == "" {
 		return ctx.ReplyEphemeral("Please provide a filename.")
 	}
 
 	// Get current avatar URL
-	user, err := ctx.Session.User("@me")
+	user, err := ctx.Session().User("@me")
 	if err != nil {
 		return ctx.ReplyEphemeral(fmt.Sprintf("Failed to get bot user: %v", err))
 	}
@@ -240,7 +237,7 @@ func (c *AvatarCommand) handleSave(ctx *CommandContext) error {
 	return ctx.Reply(fmt.Sprintf("Avatar saved as: %s", filename+ext))
 }
 
-func (c *AvatarCommand) handleList(ctx *CommandContext) error {
+func (c *AvatarCommand) handleList(ctx CommandContext) error {
 	avatarsPath := "avatars"
 	entries, err := os.ReadDir(avatarsPath)
 	if err != nil {
@@ -261,7 +258,7 @@ func (c *AvatarCommand) handleList(ctx *CommandContext) error {
 	return ctx.Reply(fmt.Sprintf("Saved avatars:\n```\n%s\n```", strings.Join(files, "\n")))
 }
 
-func (c *AvatarCommand) handleUse(ctx *CommandContext) error {
+func (c *AvatarCommand) handleUse(ctx CommandContext) error {
 	filename := ctx.GetString("filename")
 	if filename == "" {
 		return ctx.ReplyEphemeral("Please provide a filename.")
@@ -290,7 +287,7 @@ func (c *AvatarCommand) handleUse(ctx *CommandContext) error {
 	base64Img := base64.StdEncoding.EncodeToString(data)
 	dataURI := fmt.Sprintf("data:%s;base64,%s", contentType, base64Img)
 
-	_, err = ctx.Session.UserUpdate("", dataURI, "")
+	_, err = ctx.Session().UserUpdate("", dataURI, "")
 	if err != nil {
 		return ctx.ReplyEphemeral(fmt.Sprintf("Failed to update avatar: %v", err))
 	}

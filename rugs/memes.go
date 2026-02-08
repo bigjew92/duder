@@ -92,12 +92,12 @@ func (c *MemeCommand) getStorage() *Storage {
 	return c.storage
 }
 
-func (c *MemeCommand) loadTemplates() {
+func (c *MemeCommand) loadTemplates(ctx CommandContext) {
 	if len(c.memes) > 0 {
 		return
 	}
 
-	resp, err := HTTPGetString(10, "https://api.imgflip.com/get_memes", nil)
+	resp, err := ctx.HTTPGetString(10, "https://api.imgflip.com/get_memes", nil)
 	if err != nil {
 		return
 	}
@@ -115,16 +115,13 @@ func (c *MemeCommand) loadTemplates() {
 	c.memes = result.Data.Memes
 }
 
-func (c *MemeCommand) Execute(ctx *CommandContext) error {
-	data := ctx.Interaction.ApplicationCommandData()
+func (c *MemeCommand) Execute(ctx CommandContext) error {
+	data := ctx.Interaction().ApplicationCommandData()
 	if len(data.Options) == 0 {
 		return ctx.ReplyEphemeral("Please specify a subcommand.")
 	}
 
 	subCmd := data.Options[0].Name
-	for _, opt := range data.Options[0].Options {
-		ctx.Options[opt.Name] = opt
-	}
 
 	switch subCmd {
 	case "create":
@@ -138,7 +135,7 @@ func (c *MemeCommand) Execute(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Unknown subcommand.")
 }
 
-func (c *MemeCommand) handleSetCreds(ctx *CommandContext) error {
+func (c *MemeCommand) handleSetCreds(ctx CommandContext) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the bot owner can set credentials.")
 	}
@@ -154,8 +151,8 @@ func (c *MemeCommand) handleSetCreds(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Imgflip credentials saved!")
 }
 
-func (c *MemeCommand) handleList(ctx *CommandContext) error {
-	c.loadTemplates()
+func (c *MemeCommand) handleList(ctx CommandContext) error {
+	c.loadTemplates(ctx)
 
 	if len(c.memes) == 0 {
 		return ctx.ReplyEphemeral("Failed to load meme templates.")
@@ -174,7 +171,7 @@ func (c *MemeCommand) handleList(ctx *CommandContext) error {
 	return ctx.Reply(fmt.Sprintf("**Popular meme templates:**\n%s", list))
 }
 
-func (c *MemeCommand) handleCreate(ctx *CommandContext) error {
+func (c *MemeCommand) handleCreate(ctx CommandContext) error {
 	storage := c.getStorage()
 
 	username, _ := storage.GetNested("settings", "username")
@@ -188,7 +185,7 @@ func (c *MemeCommand) handleCreate(ctx *CommandContext) error {
 	topText := ctx.GetString("top")
 	bottomText := ctx.GetString("bottom")
 
-	c.loadTemplates()
+	c.loadTemplates(ctx)
 
 	// Find template ID
 	var templateID string
@@ -206,7 +203,7 @@ func (c *MemeCommand) handleCreate(ctx *CommandContext) error {
 	ctx.DeferReply()
 
 	// Create meme
-	resp, err := HTTPPostString(10, "https://api.imgflip.com/caption_image", map[string]string{
+	resp, err := ctx.HTTPPostString(10, "https://api.imgflip.com/caption_image", map[string]string{
 		"template_id": templateID,
 		"username":    username.(string),
 		"password":    password.(string),

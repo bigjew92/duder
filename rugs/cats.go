@@ -28,10 +28,10 @@ func (c *CatFactCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *CatFactCommand) Execute(ctx *CommandContext) error {
+func (c *CatFactCommand) Execute(ctx CommandContext) error {
 	ctx.DeferReply()
 
-	resp, err := HTTPGetString(10, "https://catfact.ninja/fact", nil)
+	resp, err := ctx.HTTPGetString(10, "https://catfact.ninja/fact", nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch cat fact. Try again later.")
 	}
@@ -61,10 +61,10 @@ func (c *CatPicCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *CatPicCommand) Execute(ctx *CommandContext) error {
+func (c *CatPicCommand) Execute(ctx CommandContext) error {
 	ctx.DeferReply()
 
-	resp, err := HTTPGetString(10, "https://api.thecatapi.com/v1/images/search", nil)
+	resp, err := ctx.HTTPGetString(10, "https://api.thecatapi.com/v1/images/search", nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch cat picture. Try again later.")
 	}
@@ -100,11 +100,11 @@ func (c *CatGifCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *CatGifCommand) Execute(ctx *CommandContext) error {
+func (c *CatGifCommand) Execute(ctx CommandContext) error {
 	ctx.DeferReply()
 
 	// The Cat API with gif filter
-	resp, err := HTTPGetString(10, "https://api.thecatapi.com/v1/images/search?mime_types=gif", nil)
+	resp, err := ctx.HTTPGetString(10, "https://api.thecatapi.com/v1/images/search?mime_types=gif", nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch cat GIF. Try again later.")
 	}

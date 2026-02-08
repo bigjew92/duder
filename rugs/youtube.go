@@ -93,16 +93,13 @@ func (c *YouTubeCommand) getPlaylistID() string {
 	return ""
 }
 
-func (c *YouTubeCommand) Execute(ctx *CommandContext) error {
-	data := ctx.Interaction.ApplicationCommandData()
+func (c *YouTubeCommand) Execute(ctx CommandContext) error {
+	data := ctx.Interaction().ApplicationCommandData()
 	if len(data.Options) == 0 {
 		return ctx.ReplyEphemeral("Please specify a subcommand.")
 	}
 
 	subCmd := data.Options[0].Name
-	for _, opt := range data.Options[0].Options {
-		ctx.Options[opt.Name] = opt
-	}
 
 	switch subCmd {
 	case "random":
@@ -116,7 +113,7 @@ func (c *YouTubeCommand) Execute(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("Unknown subcommand.")
 }
 
-func (c *YouTubeCommand) handleSetKey(ctx *CommandContext) error {
+func (c *YouTubeCommand) handleSetKey(ctx CommandContext) error {
 	if !ctx.IsOwner() {
 		return ctx.ReplyEphemeral("Only the bot owner can set the API key.")
 	}
@@ -129,7 +126,7 @@ func (c *YouTubeCommand) handleSetKey(ctx *CommandContext) error {
 	return ctx.ReplyEphemeral("YouTube API key set!")
 }
 
-func (c *YouTubeCommand) handleSetPlaylist(ctx *CommandContext) error {
+func (c *YouTubeCommand) handleSetPlaylist(ctx CommandContext) error {
 	playlistID := ctx.GetString("playlist_id")
 	storage := c.getStorage()
 	storage.SetNested(playlistID, "settings", "playlist_id")
@@ -138,7 +135,7 @@ func (c *YouTubeCommand) handleSetPlaylist(ctx *CommandContext) error {
 	return ctx.Reply(fmt.Sprintf("Playlist set to: %s", playlistID))
 }
 
-func (c *YouTubeCommand) handleRandom(ctx *CommandContext) error {
+func (c *YouTubeCommand) handleRandom(ctx CommandContext) error {
 	apiKey := c.getAPIKey()
 	if apiKey == "" {
 		return ctx.ReplyEphemeral("YouTube API key not configured.")
@@ -156,7 +153,7 @@ func (c *YouTubeCommand) handleRandom(ctx *CommandContext) error {
 		"https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=%s&key=%s",
 		playlistID, apiKey)
 
-	resp, err := HTTPGetString(10, url, nil)
+	resp, err := ctx.HTTPGetString(10, url, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch playlist.")
 	}

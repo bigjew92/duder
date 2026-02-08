@@ -43,7 +43,7 @@ func (c *DiceCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *DiceCommand) Execute(ctx *CommandContext) error {
+func (c *DiceCommand) Execute(ctx CommandContext) error {
 	sides := int(ctx.GetInt("sides"))
 	if sides == 0 {
 		sides = 6
@@ -99,7 +99,7 @@ func (c *EightBallCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *EightBallCommand) Execute(ctx *CommandContext) error {
+func (c *EightBallCommand) Execute(ctx CommandContext) error {
 	response := eightBallResponses[RandomInRange(0, len(eightBallResponses)-1)]
 	return ctx.Reply(fmt.Sprintf("🎱 %s", response))
 }
@@ -119,10 +119,10 @@ func (c *LebowskiCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *LebowskiCommand) Execute(ctx *CommandContext) error {
+func (c *LebowskiCommand) Execute(ctx CommandContext) error {
 	ctx.DeferReply()
 
-	resp, err := HTTPGetString(10, "https://lebowski.me/api/quotes/random", nil)
+	resp, err := ctx.HTTPGetString(10, "https://lebowski.me/api/quotes/random", nil)
 	if err != nil {
 		return ctx.FollowUp("The Dude could not be reached. Try again later.")
 	}
@@ -154,10 +154,10 @@ func (c *BashCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *BashCommand) Execute(ctx *CommandContext) error {
+func (c *BashCommand) Execute(ctx CommandContext) error {
 	ctx.DeferReply()
 
-	resp, err := HTTPGetString(10, "http://bash.org/?random", nil)
+	resp, err := ctx.HTTPGetString(10, "http://bash.org/?random", nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch bash.org quote.")
 	}
@@ -212,7 +212,7 @@ func (c *BigCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *BigCommand) Execute(ctx *CommandContext) error {
+func (c *BigCommand) Execute(ctx CommandContext) error {
 	text := strings.ToLower(ctx.GetString("text"))
 
 	var result strings.Builder
@@ -263,7 +263,7 @@ func (c *SmolCommand) Options() []*discordgo.ApplicationCommandOption {
 	}
 }
 
-func (c *SmolCommand) Execute(ctx *CommandContext) error {
+func (c *SmolCommand) Execute(ctx CommandContext) error {
 	text := strings.ToLower(ctx.GetString("text"))
 
 	var result strings.Builder
@@ -293,7 +293,7 @@ func (c *AuraCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *AuraCommand) Execute(ctx *CommandContext) error {
+func (c *AuraCommand) Execute(ctx CommandContext) error {
 	aura := RandomInRange(-1000, 1000)
 
 	var emoji string

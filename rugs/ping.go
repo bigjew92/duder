@@ -27,6 +27,6 @@ func (c *PingCommand) Options() []*discordgo.ApplicationCommandOption {
 }
 
 // Execute handles the command
-func (c *PingCommand) Execute(ctx *CommandContext) error {
+func (c *PingCommand) Execute(ctx CommandContext) error {
 	return ctx.Reply("pong 🏓")
 }
