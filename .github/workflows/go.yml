@@ -28,8 +28,36 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-  build-push:
+  release:
     needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create a GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+
+  build-push:
+    needs: [test, release]
+    if: always() && (needs.test.result == 'success') && (needs.release.result == 'success' || needs.release.result == 'skipped')
     runs-on: ubuntu-latest
     
     permissions:
@@ -59,15 +87,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Set latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
-            # Semantic versioning from git tags (v1.0.0 -> 1.0.0)
-            type=semver,pattern={{version}}
-            # Major.minor (v1.0.0 -> 1.0)
-            type=semver,pattern={{major}}.{{minor}}
-            # Major only (v1.0.0 -> 1)
-            type=semver,pattern={{major}}
-            # Short SHA for commits
+            type=raw,value=${{ needs.release.outputs.new_tag }},enable=${{ needs.release.outputs.new_tag != '' }}
+            type=ref,event=pr
             type=sha,prefix=
 
       - name: Build and push Docker image
