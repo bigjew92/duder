@@ -128,14 +128,28 @@ func (c *LebowskiCommand) Execute(ctx CommandContext) error {
 
 	var result struct {
 		Quote struct {
-			Content string `json:"content"`
+			Lines []struct {
+				Text string `json:"text"`
+			} `json:"lines"`
 		} `json:"quote"`
 	}
 	if err := json.Unmarshal([]byte(resp), &result); err != nil {
 		return ctx.FollowUp("Failed to parse quote.")
 	}
 
-	return ctx.FollowUp(fmt.Sprintf("```%s```", result.Quote.Content))
+	if len(result.Quote.Lines) == 0 {
+		return ctx.FollowUp("No quote found.")
+	}
+
+	var content strings.Builder
+	for _, line := range result.Quote.Lines {
+		if content.Len() > 0 {
+			content.WriteString("\n")
+		}
+		content.WriteString(line.Text)
+	}
+
+	return ctx.FollowUp(fmt.Sprintf("```%s```", content.String()))
 }
 
 // DadJokeCommand implements the /dadjoke slash command

@@ -51,7 +51,7 @@ func TestLebowskiCommand(t *testing.T) {
 
 	ctx.On("DeferReply").Return(nil)
 	ctx.On("HTTPGetString", 10, "https://lebowski.me/api/quotes/random", map[string]string(nil)).
-		Return(`{"quote":{"content":"The Dude abides."}}`, nil)
+		Return(`{"quote":{"lines":[{"text":"The Dude abides."}]}}`, nil)
 	ctx.On("FollowUp", "```The Dude abides.```").Return(nil)
 
 	err := cmd.Execute(ctx)
