@@ -92,7 +92,6 @@ func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
 	}
 
 	type FeaturedStats struct {
-		Season      int     `json:"season"`
 		Goals       int     `json:"goals"`
 		Assists     int     `json:"assists"`
 		Points      int     `json:"points"`
@@ -107,6 +106,7 @@ func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
 
 	var landing struct {
 		FeaturedStats struct {
+			Season        int `json:"season"`
 			RegularSeason struct {
 				SubSeason FeaturedStats `json:"subSeason"`
 			} `json:"regularSeason"`
@@ -120,10 +120,11 @@ func (c *NHLCommand) handlePlayer(ctx CommandContext, playerName string) error {
 	}
 
 	stats := landing.FeaturedStats.RegularSeason.SubSeason
+	season := landing.FeaturedStats.Season
 	name := player.Name
 	embed := NewEmbed().
 		SetTitle(fmt.Sprintf("%s (%s)", name, player.Position)).
-		SetDescription(fmt.Sprintf("Season %d-%d", stats.Season/10000, stats.Season%10000)).
+		SetDescription(fmt.Sprintf("Season %d-%d", season/10000, season%10000)).
 		SetColor(ColorBlue).
 		SetThumbnail(landing.Headshot)
 
