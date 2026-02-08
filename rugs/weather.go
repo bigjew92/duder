@@ -167,7 +167,7 @@ func (c *WeatherCommand) handleCheck(ctx CommandContext) error {
 	geoURL := fmt.Sprintf("%s?q=%s&limit=1&appid=%s", geocodeURL, url.QueryEscape(location), apiKey)
 	resp, err := ctx.HTTPGetString(10, geoURL, nil)
 	if err != nil {
-		return ctx.FollowUp("Failed to geocode location.")
+		return ctx.FollowUp(fmt.Sprintf("Failed to geocode location: %v", err))
 	}
 
 	var geoResults []struct {
