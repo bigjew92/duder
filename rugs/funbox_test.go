@@ -59,14 +59,19 @@ func TestLebowskiCommand(t *testing.T) {
 	ctx.AssertExpectations(t)
 }
 
-func TestBashCommand(t *testing.T) {
-	cmd := &BashCommand{}
+func TestDadJokeCommand(t *testing.T) {
+	cmd := &DadJokeCommand{}
 	ctx := NewTestContext()
 
+	headers := map[string]string{
+		"Accept":     "text/plain",
+		"User-Agent": "Duder/1.0 (https://github.com/bigjew92/duder)",
+	}
+
 	ctx.On("DeferReply").Return(nil)
-	ctx.On("HTTPGetString", 10, "http://bash.org/?random", map[string]string(nil)).
-		Return(`<p class="qt">I put on my robe and wizard hat.</p>`, nil)
-	ctx.On("FollowUp", "```I put on my robe and wizard hat.```").Return(nil)
+	ctx.On("HTTPGetString", 10, "https://icanhazdadjoke.com/", headers).
+		Return("I'm reading a book on anti-gravity. It's impossible to put down!", nil)
+	ctx.On("FollowUp", "```I'm reading a book on anti-gravity. It's impossible to put down!```").Return(nil)
 
 	err := cmd.Execute(ctx)
 	assert.NoError(t, err)

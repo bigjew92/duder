@@ -3,7 +3,6 @@ package rugs
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -13,7 +12,7 @@ func init() {
 	Register(&DiceCommand{})
 	Register(&EightBallCommand{})
 	Register(&LebowskiCommand{})
-	Register(&BashCommand{})
+	Register(&DadJokeCommand{})
 	Register(&BigCommand{})
 	Register(&SmolCommand{})
 	Register(&AuraCommand{})
@@ -139,44 +138,35 @@ func (c *LebowskiCommand) Execute(ctx CommandContext) error {
 	return ctx.FollowUp(fmt.Sprintf("```%s```", result.Quote.Content))
 }
 
-// BashCommand implements the /bash slash command
-type BashCommand struct{}
+// DadJokeCommand implements the /dadjoke slash command
+type DadJokeCommand struct{}
 
-func (c *BashCommand) Name() string {
-	return "bash"
+func (c *DadJokeCommand) Name() string {
+	return "dadjoke"
 }
 
-func (c *BashCommand) Description() string {
-	return "Get a random bash.org quote"
+func (c *DadJokeCommand) Description() string {
+	return "Get a random dad joke"
 }
 
-func (c *BashCommand) Options() []*discordgo.ApplicationCommandOption {
+func (c *DadJokeCommand) Options() []*discordgo.ApplicationCommandOption {
 	return nil
 }
 
-func (c *BashCommand) Execute(ctx CommandContext) error {
+func (c *DadJokeCommand) Execute(ctx CommandContext) error {
 	ctx.DeferReply()
 
-	resp, err := ctx.HTTPGetString(10, "http://bash.org/?random", nil)
+	headers := map[string]string{
+		"Accept":     "text/plain",
+		"User-Agent": "Duder/1.0 (https://github.com/bigjew92/duder)",
+	}
+
+	resp, err := ctx.HTTPGetString(10, "https://icanhazdadjoke.com/", headers)
 	if err != nil {
-		return ctx.FollowUp("Failed to fetch bash.org quote.")
+		return ctx.FollowUp("Failed to fetch dad joke.")
 	}
 
-	// Parse bash.org HTML (simplified)
-	re := regexp.MustCompile(`<p class="qt">(.*?)</p>`)
-	matches := re.FindStringSubmatch(resp)
-	if len(matches) < 2 {
-		return ctx.FollowUp("Failed to parse bash.org quote.")
-	}
-
-	quote := DecodeHTML(matches[1])
-	quote = strings.ReplaceAll(quote, "<br />", "\n")
-
-	if len(quote) > 1900 {
-		quote = quote[:1900] + "..."
-	}
-
-	return ctx.FollowUp(fmt.Sprintf("```%s```", quote))
+	return ctx.FollowUp(fmt.Sprintf("```%s```", resp))
 }
 
 // BigCommand implements the /big slash command
@@ -291,7 +281,7 @@ func (c *AuraCommand) Name() string {
 }
 
 func (c *AuraCommand) Description() string {
-	return "Check your aura level"
+	return "Get a random Aura copypasta quote"
 }
 
 func (c *AuraCommand) Options() []*discordgo.ApplicationCommandOption {
