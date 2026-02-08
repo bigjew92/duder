@@ -207,6 +207,28 @@ func (c *NHLCommand) handleTeam(ctx CommandContext, teamName string) error {
 		return ctx.FollowUp(fmt.Sprintf("No NHL team found matching '%s'.", teamName))
 	}
 
+	// Build division standings table
+	var divisionTeams []TeamStanding
+	for _, team := range standings.Standings {
+		if team.DivisionName == match.DivisionName {
+			divisionTeams = append(divisionTeams, team)
+		}
+	}
+
+	var standingsTable strings.Builder
+	standingsTable.WriteString("```\n")
+	standingsTable.WriteString(fmt.Sprintf("%-20s %5s %4s %5s\n", "Team", "W-L-O", "PTS", "+/-"))
+	standingsTable.WriteString(strings.Repeat("-", 38) + "\n")
+	for _, team := range divisionTeams {
+		record := fmt.Sprintf("%d-%d-%d", team.Wins, team.Losses, team.OTLosses)
+		marker := ""
+		if team.TeamAbbrev.Default == match.TeamAbbrev.Default {
+			marker = "▶"
+		}
+		standingsTable.WriteString(fmt.Sprintf("%s%-19s %5s %4d %+4d\n", marker, team.TeamName.Default, record, team.Points, team.GoalDifferential))
+	}
+	standingsTable.WriteString("```")
+
 	embed := NewEmbed().
 		SetTitle(match.TeamName.Default).
 		SetDescription(fmt.Sprintf("%s Conference | %s Division", match.ConferenceName, match.DivisionName)).
@@ -215,7 +237,8 @@ func (c *NHLCommand) handleTeam(ctx CommandContext, teamName string) error {
 		AddField("Record", fmt.Sprintf("%d-%d-%d", match.Wins, match.Losses, match.OTLosses), true).
 		AddField("Points", fmt.Sprintf("%d (%.3f)", match.Points, match.PointPctg), true).
 		AddField("Goals", fmt.Sprintf("%d GF / %d GA (%+d)", match.GoalFor, match.GoalAgainst, match.GoalDifferential), true).
-		AddField("Streak", fmt.Sprintf("%s%d", match.StreakCode, match.StreakCount), true)
+		AddField("Streak", fmt.Sprintf("%s%d", match.StreakCode, match.StreakCount), true).
+		AddField(fmt.Sprintf("%s Division Standings", match.DivisionName), standingsTable.String(), false)
 
 	return ctx.FollowUpEmbed(embed.Build())
 }

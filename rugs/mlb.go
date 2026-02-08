@@ -185,8 +185,9 @@ func (c *MLBCommand) handlePlayer(ctx CommandContext, playerName string) error {
 }
 
 func (c *MLBCommand) handleTeam(ctx CommandContext, teamName string) error {
-	// MLB standings API
-	standingsURL := "http://lookup-service-prod.mlb.com/json/named.standings_schedule_date.bam?league_id='103','104'&season='2024'&stand_type='div'&schedule_game_date.game_date='2024-09-30'"
+	// MLB standings API - use current year
+	currentYear := time.Now().Year()
+	standingsURL := fmt.Sprintf("http://lookup-service-prod.mlb.com/json/named.standings_schedule_date.bam?league_id='103','104'&season='%d'&stand_type='div'&schedule_game_date.game_date='%d-09-30'", currentYear, currentYear)
 	resp, err := ctx.HTTPGetString(10, standingsURL, nil)
 	if err != nil {
 		return ctx.FollowUp("Failed to fetch MLB standings.")
@@ -247,13 +248,36 @@ func (c *MLBCommand) handleTeam(ctx CommandContext, teamName string) error {
 		return ctx.FollowUp(fmt.Sprintf("No MLB team found matching '%s'.", teamName))
 	}
 
+	// Build division standings table
+	var divisionTeams []TeamStanding
+	for _, team := range teams {
+		if team.Division == match.Division {
+			divisionTeams = append(divisionTeams, team)
+		}
+	}
+
+	var standingsTable strings.Builder
+	standingsTable.WriteString("```\n")
+	standingsTable.WriteString(fmt.Sprintf("%-22s %7s %5s %5s\n", "Team", "W-L", "PCT", "GB"))
+	standingsTable.WriteString(strings.Repeat("-", 42) + "\n")
+	for _, team := range divisionTeams {
+		record := fmt.Sprintf("%s-%s", team.Wins, team.Losses)
+		marker := ""
+		if team.TeamShort == match.TeamShort {
+			marker = "▶"
+		}
+		standingsTable.WriteString(fmt.Sprintf("%s%-21s %7s %5s %5s\n", marker, team.TeamFull, record, team.Pct, team.GB))
+	}
+	standingsTable.WriteString("```")
+
 	embed := NewEmbed().
 		SetTitle(match.TeamFull).
 		SetDescription(match.Division).
 		SetColor(ColorBlue).
 		AddField("Record", fmt.Sprintf("%s-%s", match.Wins, match.Losses), true).
 		AddField("Win %", match.Pct, true).
-		AddField("GB", match.GB, true)
+		AddField("GB", match.GB, true).
+		AddField(fmt.Sprintf("%s Standings", match.Division), standingsTable.String(), false)
 
 	return ctx.FollowUpEmbed(embed.Build())
 }
