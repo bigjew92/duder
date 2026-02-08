@@ -13,6 +13,7 @@ func init() {
 	Register(&EightBallCommand{})
 	Register(&LebowskiCommand{})
 	Register(&DadJokeCommand{})
+	Register(&FactCommand{})
 	Register(&BigCommand{})
 	Register(&SmolCommand{})
 	Register(&AuraCommand{})
@@ -183,6 +184,55 @@ func (c *DadJokeCommand) Execute(ctx CommandContext) error {
 	return ctx.FollowUp(fmt.Sprintf("```%s```", resp))
 }
 
+// FactCommand implements the /fact command
+type FactCommand struct{}
+
+func (c *FactCommand) Name() string {
+	return "fact"
+}
+
+func (c *FactCommand) Description() string {
+	return "Get a useless fact"
+}
+
+func (c *FactCommand) Options() []*discordgo.ApplicationCommandOption {
+	return []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "type",
+			Description: "Type of fact",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{Name: "Random", Value: "random"},
+				{Name: "Fact of the Day", Value: "today"},
+			},
+		},
+	}
+}
+
+func (c *FactCommand) Execute(ctx CommandContext) error {
+	factType := ctx.GetString("type")
+	if factType == "" {
+		factType = "random"
+	}
+
+	url := fmt.Sprintf("https://uselessfacts.jsph.pl/api/v2/facts/%s", factType)
+	resp, err := ctx.HTTPGetString(10, url, nil)
+	if err != nil {
+		return ctx.ReplyEphemeral("Failed to fetch a fact.")
+	}
+
+	var result struct {
+		Text   string `json:"text"`
+		Source string `json:"source"`
+	}
+	if err := json.Unmarshal([]byte(resp), &result); err != nil {
+		return ctx.ReplyEphemeral("Failed to parse fact.")
+	}
+
+	return ctx.Reply(fmt.Sprintf("%s\n*Source: %s*", result.Text, result.Source))
+}
+
 // BigCommand implements the /big slash command
 type BigCommand struct{}
 
@@ -317,7 +367,7 @@ var auraResponses = []string{
 
 func (c *AuraCommand) Execute(ctx CommandContext) error {
 	response := auraResponses[RandomInRange(0, len(auraResponses)-1)]
-	return ctx.Reply(response)
+	return ctx.Reply(fmt.Sprintf(">>> %s", response))
 }
 
 // Helper function for int pointer
