@@ -1,20 +1,24 @@
+# Build stage
+FROM golang:1.20-alpine AS builder
 
-FROM golang:1.20
-
-# Set destination for COPY
 WORKDIR /app
 
 # Download Go modules
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the source code. Note the slash at the end, as explained in
-# https://docs.docker.com/engine/reference/builder/#copy
+# Copy the source code
 COPY . ./
 
-# Build
-RUN go build -o /duder
+# Build with optimizations: disable CGO, strip debug symbols
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /duder
 
+# Final stage - minimal Alpine image
+FROM alpine:latest
 
-# Run
+# Add CA certs for HTTPS requests
+RUN apk --no-cache add ca-certificates
+
+COPY --from=builder /duder /duder
+
 CMD ["/duder"]
