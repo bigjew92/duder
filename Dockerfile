@@ -16,8 +16,8 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /duder
 # Final stage - minimal Alpine image
 FROM alpine:latest
 
-# Add CA certs for HTTPS requests
-RUN apk --no-cache add ca-certificates
+# Add CA certs for HTTPS requests and timezone data for scheduling
+RUN apk --no-cache add ca-certificates tzdata
 
 COPY --from=builder /duder /duder
 
