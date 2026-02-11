@@ -83,6 +83,9 @@ func main() {
 		log.Fatal("Failed to register slash commands; ", err)
 	}
 
+	// start the scheduler
+	Duder.Scheduler.Start()
+
 	Duder.Log(LogGeneral, "Bot is now running.")
 
 	// register bot sg.shutdown channel to receive shutdown signals.
@@ -103,6 +106,7 @@ type DuderBot struct {
 	Discord        *DiscordManager
 	Permissions    *PermissionsManager
 	Rugs           *RugManager
+	Scheduler      *SchedulerManager
 	debug          bool
 	shutdownSignal chan os.Signal
 }
@@ -199,6 +203,7 @@ func (duder *DuderBot) Shutdown(message *discordgo.MessageCreate) {
 
 // teardown gracefully releases all resources and saves data before Shutdown.
 func (duder *DuderBot) teardown() (err error) {
+	duder.Scheduler.teardown()
 	duder.Discord.teardown()
 	duder.Permissions.teardown()
 	// Go commands handle their own cleanup via storage.Save()

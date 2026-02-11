@@ -201,6 +201,28 @@ For full functionality, you can also select:
 
 ---
 
+## Scheduled Tasks
+
+### Friday Video
+
+The bot automatically posts a video to a Discord channel every **Friday at 9 AM PST** with the message "Happy Friday! 🎉".
+
+**Configuration** (`config.json`):
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `fridayVideoPath` | `video/itsfriday.mp4` | Path to the video file |
+| `fridayVideoChannelID` | `210434888124334081` | Target Discord channel |
+
+**Docker Compose**: The video is mounted from the host via a volume:
+```yaml
+- ./config/itsfriday.mp4:/app/video/itsfriday.mp4
+```
+
+Place your video at `./config/itsfriday.mp4` on the host system.
+
+---
+
 ## Adding a New Command
 
 Creating a new slash command is simple. Here's a step-by-step guide:
