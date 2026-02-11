@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -231,11 +232,37 @@ func (manager *DiscordManager) SendEmbedToChannel(channelID string, jsonData str
 	return nil
 }
 
-// SendFileToChannel description
+// SendFileToChannel sends a file to a Discord channel
 func (manager *DiscordManager) SendFileToChannel(channelID string, name string, reader io.Reader) {
-	//data := discordgo.MessageSend{}
-	//data.File = discordgo.File{}
-	//manager.session.ChannelFileSend(channelID)
+	_, err := manager.session.ChannelFileSend(channelID, name, reader)
+	if err != nil {
+		Duder.Logf(LogWarning, "Failed to send file to channel %s: %s", channelID, err.Error())
+	}
+}
+
+// SendVideoToChannel sends a video file from disk to a Discord channel with a message
+func (manager *DiscordManager) SendVideoToChannel(channelID string, filePath string, message string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open video file '%s': %s", filePath, err.Error())
+	}
+	defer file.Close()
+
+	ms := &discordgo.MessageSend{
+		Content: message,
+		Files: []*discordgo.File{
+			{
+				Name:   filepath.Base(filePath),
+				Reader: file,
+			},
+		},
+	}
+
+	_, err = manager.session.ChannelMessageSendComplex(channelID, ms)
+	if err != nil {
+		return fmt.Errorf("failed to send video to channel %s: %s", channelID, err.Error())
+	}
+	return nil
 }
 
 // SetStatus description

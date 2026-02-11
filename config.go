@@ -14,14 +14,16 @@ func init() {
 
 // Config description
 type Config struct {
-	AvatarsPath     string `json:"avatarsPath"`
-	BotToken        string `json:"botToken"`
-	CommandPrefix   string `json:"commandPrefix"`
-	OwnerID         string `json:"ownerID"`
-	PermissionsFile string `json:"permissionsFile"`
-	RugsPath        string `json:"rugsPath"`
-	Status          string `json:"status"`
-	UpdateExec      string `json:"updateExec"`
+	AvatarsPath           string `json:"avatarsPath"`
+	BotToken              string `json:"botToken"`
+	CommandPrefix         string `json:"commandPrefix"`
+	FridayVideoPath       string `json:"fridayVideoPath"`
+	FridayVideoChannelID  string `json:"fridayVideoChannelID"`
+	OwnerID               string `json:"ownerID"`
+	PermissionsFile       string `json:"permissionsFile"`
+	RugsPath              string `json:"rugsPath"`
+	Status                string `json:"status"`
+	UpdateExec            string `json:"updateExec"`
 }
 
 // ConfigManager description
@@ -47,12 +49,14 @@ func (manager *ConfigManager) Load() error {
 
 		// defaults
 		config = Config{
-			AvatarsPath:     "avatars",
-			CommandPrefix:   "!d",
-			PermissionsFile: "permissions.json",
-			RugsPath:        "rugs",
-			Status:          "with Maude",
-			UpdateExec:      "",
+			AvatarsPath:          "avatars",
+			CommandPrefix:        "!d",
+			FridayVideoPath:      "video/itsfriday.mp4",
+			FridayVideoChannelID: "210434888124334081",
+			PermissionsFile:      "permissions.json",
+			RugsPath:             "rugs",
+			Status:               "with Maude",
+			UpdateExec:           "",
 		}
 
 		// required
@@ -199,6 +203,16 @@ func (manager *ConfigManager) UpdateExec() string {
 func (manager *ConfigManager) SetUpdateExec(exec string) {
 	manager.data.UpdateExec = exec
 	manager.Save()
+}
+
+// FridayVideoPath returns the path to the Friday video file
+func (manager *ConfigManager) FridayVideoPath() string {
+	return manager.data.FridayVideoPath
+}
+
+// FridayVideoChannelID returns the channel ID for Friday video posts
+func (manager *ConfigManager) FridayVideoChannelID() string {
+	return manager.data.FridayVideoChannelID
 }
 
 // teardown description

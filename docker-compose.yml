@@ -24,3 +24,5 @@ services:
       - ./config/raffle.json:/app/rugs/raffle.json
       - ./config/memes.json:/app/rugs/memes.json
       - ./config/reactionrank.json:/app/rugs/reactionrank.json
+      # Friday video
+      - ./config/itsfriday.mp4:/app/video/itsfriday.mp4
